@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // Original shared football-player geometry. Every player uses these same cached
 // shapes and the same pose system; team uniforms and jersey numbers differ.
 const geometry = {
-  sphere: new THREE.SphereGeometry(1, 14, 10),
+  sphere: new THREE.SphereGeometry(1, 20, 14),
   capsule: new THREE.CapsuleGeometry(1, 1, 4, 10),
   box: new THREE.BoxGeometry(1, 1, 1),
   number: new THREE.PlaneGeometry(.32, .32),
@@ -26,6 +26,20 @@ const teams = [
   { jersey: material('#192f35', .91), helmet: material('#ddd4ad', .26, .25), trim: material('#cee980', .7) },
   { jersey: material('#a3372c', .91), helmet: material('#273136', .29, .25), trim: material('#e7dbbf', .7) },
 ];
+let uniformDetail, contactMaterial;
+function applyUniformDetail() {
+  if (uniformDetail) return;
+  const canvas = document.createElement('canvas');canvas.width=canvas.height=128;
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#888';ctx.fillRect(0,0,128,128);
+  for(let y=0;y<128;y+=4)for(let x=0;x<128;x+=4){
+    ctx.fillStyle=(x+y)%8?'#999':'#737373';ctx.fillRect(x,y,2,3);
+  }
+  uniformDetail=new THREE.CanvasTexture(canvas);
+  uniformDetail.wrapS=uniformDetail.wrapT=THREE.RepeatWrapping;uniformDetail.repeat.set(8,8);
+  for(const surface of [common.pants,...teams.map(t=>t.jersey)]){
+    surface.bumpMap=uniformDetail;surface.bumpScale=.007;surface.roughness=.88;
+  }
+}
 const numbers = new Map();
 const sharedSkinGeometry = [];
 function numberMaterial(number) {
@@ -106,6 +120,7 @@ function bindSharedGeometry(root) {
 }
 
 export function createPlayer(isOffense, number, role = 'receiver') {
+  applyUniformDetail();
   const root = new THREE.Group();
   const team = teams[isOffense ? 0 : 1];
   const body = pivot(root, [0, 1, 0]);
@@ -118,7 +133,7 @@ export function createPlayer(isOffense, number, role = 'receiver') {
   back.rotation.y = Math.PI;
   part(body, geometry.capsule, common.skin, [0, .59, 0], [.085, .05, .085]);
   const head = pivot(body, [0, .79, .005]);
-  part(head, geometry.sphere, team.helmet, [0, 0, 0], [.215, .245, .235]);
+  part(head, geometry.sphere, team.helmet, [0, 0, 0], [.185, .215, .215]);
   part(head, geometry.box, team.trim, [0, .22, .015], [.045, .02, .17]);
   part(head, geometry.sphere, common.visor, [0, -.025, .19], [.166, .105, .066]);
   part(head, geometry.sphere, common.skin, [0, -.12, .163], [.12, .065, .07]);
@@ -130,14 +145,14 @@ export function createPlayer(isOffense, number, role = 'receiver') {
   for (const side of [-1, 1]) {
     const bar = part(head, geometry.box, common.cage, [side * .155, -.09, .235], [.018, .15, .10]);
     bar.rotation.z = side * -.15;
-    part(head, geometry.sphere, team.helmet, [side * .20, -.045, 0], [.035, .09, .09]);
+    part(head, geometry.sphere, team.helmet, [side * .18, -.045, 0], [.035, .09, .09]);
   }
   part(head, geometry.box, common.gloves, [0, -.19, .16], [.17, .025, .04]);
 
   const arms = [], legs = [];
   for (const side of [-1, 1]) {
     const shoulder = pivot(body, [side * .31, .42, 0]);
-    part(shoulder, geometry.sphere, team.jersey, [side * .015, -.045, 0], [.15, .17, .17]);
+    part(shoulder, geometry.sphere, team.jersey, [side * .015, -.045, 0], [.135, .15, .145]);
     part(shoulder, geometry.capsule, common.skin, [0, -.19, 0], [.085, .085, .085]);
     part(shoulder, geometry.box, team.trim, [side * .125, -.085, .005], [.018, .045, .19]);
     const elbow = pivot(shoulder, [0, -.30, 0]);
@@ -147,11 +162,11 @@ export function createPlayer(isOffense, number, role = 'receiver') {
     arms.push({ shoulder, elbow });
 
     const hip = pivot(root, [side * .135, .96, 0]);
-    part(hip, geometry.capsule, common.pants, [0, -.20, 0], [.115, .115, .125]);
+    part(hip, geometry.capsule, common.pants, [0, -.20, 0], [.105, .15, .115]);
     part(hip, geometry.box, team.trim, [side * .108, -.19, -.005], [.018, .34, .055]);
     const knee = pivot(hip, [0, -.43, 0]);
-    part(knee, geometry.sphere, common.pants, [0, 0, .01], [.105, .105, .115]);
-    part(knee, geometry.capsule, common.socks, [0, -.18, -.01], [.075, .10, .085]);
+    part(knee, geometry.sphere, common.pants, [0, 0, .01], [.09, .09, .095]);
+    part(knee, geometry.capsule, common.socks, [0, -.18, -.01], [.070, .12, .075]);
     const foot = pivot(knee, [0, -.40, 0]);
     part(foot, geometry.sphere, common.shoes, [0, -.035, .075], [.095, .065, .18]);
     part(foot, geometry.box, common.gloves, [0, .005, .07], [.08, .015, .11]);
@@ -161,6 +176,15 @@ export function createPlayer(isOffense, number, role = 'receiver') {
   root.userData.role = role;
   root.userData.visual = { moving: false, time: 0, throwProgress: null, catching: false };
   bindSharedGeometry(root);
+  if(!contactMaterial){
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=64;
+    const ctx=canvas.getContext('2d'),gradient=ctx.createRadialGradient(32,32,3,32,32,31);
+    gradient.addColorStop(0,'rgba(10,18,10,.32)');gradient.addColorStop(1,'rgba(10,18,10,0)');
+    ctx.fillStyle=gradient;ctx.fillRect(0,0,64,64);
+    contactMaterial=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(canvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1});
+  }
+  const contact=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.1),contactMaterial);
+  contact.rotation.x=-Math.PI/2;contact.position.y=.025;root.add(contact);
   animatePlayer(root, 0, false);
   return root;
 }
@@ -169,27 +193,35 @@ export function animatePlayer(player, time, moving, { throwProgress = null, catc
   const { body, head, arms, legs } = player.userData.rig;
   const quarterback = player.userData.role === 'quarterback';
   const lineman = player.userData.role === 'blocker' || player.userData.role === 'rusher';
-  const cadence = time * 11.5;
+  const locomotion=player.userData.locomotion;
+  const speed=locomotion?.speed??(moving?5.8:0);
+  const intensity=Math.min(1,speed/5.8);
+  const cadence = locomotion ? locomotion.stride * 3.8 : time * 11.5;
+  const backward=locomotion?.backpedal?-1:1;
   body.position.y = 1 + (moving ? Math.abs(Math.sin(cadence)) * .025 : 0);
-  body.rotation.x = moving ? .10 : lineman ? .22 : .025;
+  body.rotation.x = lineman ? .42 : moving ? .08+intensity*.12 : .06;
   body.rotation.y = moving ? Math.sin(cadence) * .045 : 0;
   head.rotation.x = -body.rotation.x * .7;
   for (let index = 0; index < 2; index++) {
     const wave = Math.sin(cadence + index * Math.PI);
     const { hip, knee, foot } = legs[index];
-    hip.rotation.x = moving ? wave * .65 - .10 : -.10;
-    knee.rotation.x = moving ? .12 + Math.max(0, -wave) * 1.25 : .18;
+    hip.rotation.x = moving ? wave * (lineman?.18:(.22+intensity*.43))*backward - (lineman?.45:.10) : lineman ? -.5 : -.10;
+    knee.rotation.x = moving ? (lineman?.75:.12) + Math.max(0, -wave*backward) * (lineman?.25:(.5+intensity*.75)) : lineman ? .9 : .18;
     foot.rotation.x = moving ? -Math.max(0, wave) * .30 : -.08;
     const { shoulder, elbow } = arms[index];
-    shoulder.rotation.x = moving ? -wave * .65 - .2 : quarterback ? -.45 : lineman ? -.8 : -.18;
+    shoulder.rotation.x = lineman ? -.8 : moving ? -wave * (.2+intensity*.45)*backward - .2 : quarterback ? -.45 : -.18;
     shoulder.rotation.z = (index ? -1 : 1) * (quarterback ? .12 : .08);
-    elbow.rotation.x = quarterback ? -1.15 : moving ? -1.0 : lineman ? -.7 : -.38;
+    elbow.rotation.x = quarterback ? -1.15 : lineman ? -.7 : moving ? -1.0 : -.38;
     if (catching) {
       shoulder.rotation.x = -1.2;
       shoulder.rotation.z = (index ? -1 : 1) * .15;
       elbow.rotation.x = -.55;
     }
   }
+  // Pelvis follows the planted leg, keeping cleats on turf instead of floating.
+  const pelvis=Math.max(...legs.map(({hip,knee})=>.43*Math.cos(hip.rotation.x)+.40*Math.cos(hip.rotation.x+knee.rotation.x)))+.10;
+  for(const {hip} of legs)hip.position.y=pelvis;
+  body.position.y=pelvis+.04;
   if (quarterback && throwProgress !== null) {
     const amount = THREE.MathUtils.smoothstep(throwProgress, 0, 1);
     arms[1].shoulder.rotation.x = THREE.MathUtils.lerp(1.2, -1.75, amount);

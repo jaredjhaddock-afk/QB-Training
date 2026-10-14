@@ -25,9 +25,9 @@ export function pointOnRoute(points,distance) {
 }
 export function coverageAssignments(name, starts) {
   const c=coverages[name];
-  if(c.type==='man') return [...starts.map((p,i)=>({role:'man',target:i,x:p[0]+(p[0]>0?-1:1),z:p[1]+3})),...Array.from({length:c.deep},(_,i)=>({role:'deep',x:c.deep===1?0:(i?13:-13),z:23})),...Array.from({length:2-c.deep},(_,i)=>({role:'rush',x:i?4:-4,z:1}))];
-  const deep=Array.from({length:c.deep},(_,i)=>({role:'deep',x:-26+(i+.5)*52/c.deep,z:23}));
+  if(c.type==='man') return [...starts.map((p,i)=>({role:'man',target:i,x:p[0]+(p[0]>0?-1:1),z:p[1]+3})),...Array.from({length:c.deep},(_,i)=>({role:'deep',x:c.deep===1?0:(i?13:-13),z:20,minX:c.deep===1?-26:(i?0:-26),maxX:c.deep===1?26:(i?26:0)})),...Array.from({length:2-c.deep},(_,i)=>({role:'rush',x:i?4:-4,z:1}))];
+  const deep=Array.from({length:c.deep},(_,i)=>({role:'deep',x:-26+(i+.5)*52/c.deep,z:18,minX:-26+i*52/c.deep,maxX:-26+(i+1)*52/c.deep}));
   const n=7-c.deep-(c.spy?1:0);
-  return [...deep,...Array.from({length:n},(_,i)=>({role:'zone',x:-25+(i+.5)*50/n,z:i===0||i===n-1?6:10})),...(c.spy?[{role:'spy',x:0,z:5}]:[])];
+  return [...deep,...Array.from({length:n},(_,i)=>({role:'zone',x:-25+(i+.5)*50/n,z:i===0||i===n-1?6:10,minX:-26+i*52/n,maxX:-26+(i+1)*52/n})),...(c.spy?[{role:'spy',x:0,z:5}]:[])];
 }
 export function moveToward(position,target,step) {const dx=target[0]-position[0],dz=target[1]-position[1],d=Math.hypot(dx,dz);return d<=step?[...target]:[position[0]+dx/d*step,position[1]+dz/d*step];}
