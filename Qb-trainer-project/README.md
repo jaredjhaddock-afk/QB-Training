@@ -20,6 +20,32 @@ Choose a formation, assign each receiver a hot route, then choose coverage and a
 - **R** or **Reset play** resets the same play; settings unlock for adjustments.
 - Optional route/zone overlays and slow motion support learning.
 
+### Mobile play
+
+Hold your phone sideways. On touch devices, the game fills the landscape viewport;
+the page header and setup sidebar are replaced by an in-game **Playbook** panel.
+Choose formations, routes, and coverage between reps, then tap **Back to field**.
+Tap **Snap ball**, then tap the fixed **X / H / Y / Z / R** button for the receiver
+you want to pass to. These buttons stay in place even when receivers move offscreen.
+Left-thumb arrow buttons move the QB in all four directions. Tap **Reset play**
+to run it again or unlock the playbook.
+
+Portrait orientation displays a rotate prompt and pauses the rep. Switching apps
+also pauses play. **Full screen** requests browser fullscreen and landscape lock
+where supported; otherwise the game still fills the available landscape viewport.
+Some browsers, including versions of iOS Safari, retain browser chrome or require
+manual device rotation. No paid assets are used.
+
+### Team receiver designations
+
+Edit the name beside any route in the playbook to use your team's terminology,
+such as X, Z, Y, F, H, B, or RB. Use a unique designation of 1–3 letters or numbers
+per receiver. Names update the field markers, touch passing buttons, route labels,
+and rep results. The receiver's route and keyboard number stay the same. Names
+persist on this browser/device; **Reset names** restores X, H, Y, Z, R. Editing is
+locked after the snap until the play is reset. If device storage is unavailable,
+names still work for the current session.
+
 Reps end in a completion, interception, breakup, sack, or 12-second timeout. Stats last for the browser session. Passing completion percentage excludes sacks and timeouts.
 
 ## Validate
@@ -28,13 +54,14 @@ Reps end in a completion, interception, breakup, sack, or 12-second timeout. Sta
 npm test
 npm run build
 node scripts/smoke.mjs
+node scripts/mobile-smoke.mjs
 ```
 
 The browser smoke test expects the development server on port 5173 and Chromium at `/usr/bin/chromium` (or set `CHROMIUM_PATH` to an installed Chromium executable).
 
 ## Scope and next graphics milestone
 
-All players share one procedural model and running animation, differentiated by uniform and number. The scene includes a perspective QB camera, stadium seating, shadows, field markings, and animated ball flight. The default wide camera is raised behind the QB to keep route development visible. Select Helmet POV for a first-person view.
+All players share one procedural model and running animation, differentiated by uniform and number. The scene includes a perspective QB camera, stadium seating, shadows, field markings, and animated ball flight. The default QB Follow camera sits low and close behind the quarterback, centered on the pocket with a wide horizontal lens, following the supplied camera references. A ground ring identifies the controlled player. Wide QB provides the raised training view; Helmet POV provides a first-person view.
 
 Coverage uses simplified man tracking and zone pursuit. Blocking uses timed pressure release; collision-based blocking, tackling, authentic coverage checks, receiver catch animations, and ball carrying after a catch are not implemented. The front selections change alignment; they do not simulate complete personnel packages. A rep ends at the catch point.
 
