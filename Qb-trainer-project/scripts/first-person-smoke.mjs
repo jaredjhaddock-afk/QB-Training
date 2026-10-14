@@ -5,7 +5,7 @@ const errors = [];
 async function ready(page) {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('http://127.0.0.1:5173', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForFunction(() => window.pocketLab?.getState().visuals.environment === 'ready', {}, { timeout: 90000 });
+  await page.waitForFunction(() => window.pocketLab?.getState().visuals.environment === 'ready' && window.pocketLab.getState().visuals.playerModel === 'realistic-glb', {}, { timeout: 90000 });
   assert.equal(await page.evaluate(() => window.pocketLab.getState().cameraMode), 'QB POV');
 }
 try {

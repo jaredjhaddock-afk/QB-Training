@@ -76,13 +76,15 @@ The browser smoke test expects the development server on port 5173 and Chromium 
 
 The default camera is **QB POV**, an eye-level first-person view with visible hands and independent looking/movement. QB Follow and Wide QB remain optional training views.
 
-All players share one original articulated football model and pose system, differentiated by uniform and number. The geometry is shared across players and combined into skinned meshes to reduce draw calls. Models include helmets, face cages, shoulder pads, uniforms, gloves, and cleats, with running, throwing, and reaching-to-catch poses. The field uses generated turf detail and a crowd rendered through instancing. A locally bundled CC0 HDR environment provides the sky and reflections; a plain daylight fallback keeps the game playable if the HDR fails to load. [Asset credits and license provenance](public/assets/CREDITS.md) document the free asset. No character model from a third party is included.
+All 22 players share the supplied `football_player_realistic.glb` geometry and textures, with independently cloned skeletons. The offense maps original navy to red and original red to gray, preserving white details and skin. The defense uses contrasting gray/navy. The model's baked jersey number is shared by every player; editable receiver designations identify targets. Procedural players remain a fallback if the GLB cannot load.
 
-Movement now uses bounded acceleration and braking. Receivers slow into sharp route breaks and passes predict their actual accelerated route movement. Players turn gradually; stride phase follows distance traveled, with slower backpedal poses, lower lineman stances, and planted-leg pelvis adjustment. Uniform weave, refined helmet/leg proportions, contact shadows, and sharper desktop sun shadows improve readability.
+The supplied Idle, Run, and Catch clips drive animation. Run cadence scales to actual movement using the supplied 7 m/s stride reference; gameplay speeds are still defined in yards. Horizontal hip translation is removed from animation clips so the catch cannot displace a receiver from the simulated route. Catch retains its vertical leap and continues through the landing after a completion, with the game's football following the hands. The model's embedded football is always hidden. Blocking and throwing use simple additive poses, and backward movement reverses the running cycle; dedicated blocking, throw, and backpedal clips are still needed.
 
-Coverage decisions use delayed observed receiver positions and velocities, rather than looking ahead along their routes. Deep defenders protect the deepest threat in their half/third/quarter. Underneath defenders hold their lane, midpoint multiple threats, and hand off crossing routes. Cover 1 maintains inside/top leverage; Cover 2 Man trails with deep help. Spies mirror QB movement; edge rushers maintain an outside approach. Defenders wait 240–310 ms after release before breaking toward a reachable landing point. These are explicit coaching approximations, not a reproduction of Madden's proprietary AI. Blocking uses timed pressure release; collision-based blocking, tackling, authentic coverage checks, full pattern-match rules, receiver/defender body collisions, motion-captured catch sequences, and ball carrying after a catch are not implemented. Fronts now preserve actual personnel counts: 4–3, 3–4, 4–4, nickel (4–2–5), and dime (4–1–6). Nickel Wide uses the nickel personnel with wider ends. These are representative alignments, not a complete defensive playbook. A rep ends at the catch point.
+Movement uses bounded acceleration, braking, and gradual turning. Receivers slow into sharp route breaks and passes lead their accelerated movement. The field uses generated turf detail and an instanced crowd. A bundled CC0 HDR provides daylight and reflections, with fallback lighting if unavailable. [Asset provenance](public/assets/CREDITS.md) records the supplied model and environment.
 
-The user's visual target is Madden-level fidelity with one shared character model. Achieving that remains outstanding: replace the procedural model with a licensed high-detail rigged football player, shared locomotion/throw/catch animation set, PBR uniforms and equipment, and higher-quality stadium assets. No proprietary Madden assets are included. This first build validates the interaction and training loop, not that graphics target.
+Coverage decisions use delayed observed receiver positions and velocities, rather than looking ahead along their routes. Deep defenders protect the deepest threat in their half/third/quarter. Underneath defenders hold their lane, midpoint multiple threats, and hand off crossing routes. Cover 1 maintains inside/top leverage; Cover 2 Man trails with deep help. Spies mirror QB movement; edge rushers maintain an outside approach. Defenders wait 240–310 ms after release before breaking toward a reachable landing point. These are explicit coaching approximations, not a reproduction of Madden's proprietary AI. Blocking uses timed pressure release; collision-based blocking, tackling, authentic coverage checks, full pattern-match rules, receiver/defender body collisions, and playable running after a catch are not implemented. Fronts now preserve actual personnel counts: 4–3, 3–4, 4–4, nickel (4–2–5), and dime (4–1–6). Nickel Wide uses the nickel personnel with wider ends. These are representative alignments, not a complete defensive playbook. A rep ends at the catch point.
+
+The user's visual target is Madden-level fidelity with one shared character model. The supplied rigged model improves player detail, but achieving that target remains outstanding: dedicated football blocking/throwing/backpedal animations, animation blending and contact work, higher-quality stadium assets, and hardware performance tuning are still needed. No proprietary Madden assets are included. This first build validates the interaction and training loop, not that graphics target.
 
 
 ### Defensive alignment defaults
@@ -115,3 +117,48 @@ matchups. Coverage-zone overlays show drop landmarks, not starting positions.
 
 Stem distances are measured from the receiver's starting alignment. Route lines,
 receiver movement, and pass-leading prediction use the same path definitions.
+
+## Quest 3 VR (initial playable version)
+
+Open the game's **forwarded HTTPS address directly in Quest Browser**, outside an
+embedded preview. Keep the Codespace and Vite server running, and make port 5173
+public if testers are not signed into your GitHub account. Choose your play, then
+select **Enter VR** below the playbook settings. On the phone-style layout this
+button is inside **Playbook**. Grant immersive access when prompted. Unsupported
+browsers display “VR unavailable” and retain normal gameplay.
+
+- Head tracking supplies the first-person view, with no camera bob.
+- Left thumbstick moves relative to your head direction; right thumbstick turns
+  in 30-degree steps. Release the stick between snap turns.
+- **Point toward the intended receiver and press the right trigger to pass.**
+  A highlighted marker identifies the target. A 10-degree aiming cone allows
+  near misses; receivers outside that cone are not selected automatically. There
+  is no physical throwing gesture. The pass still leads the receiver's route.
+- **A** snaps, **B** resets, and **X** toggles route lines.
+- A floating toolbar sits below the center of the VR view: **Snap**, **Reset**,
+  **Routes**, **Playbook**, **Exit VR**, plus receiver passing buttons during a rep.
+  Point and trigger to select. The toolbar remains visible in front of players.
+- **Playbook** cycles formations, coverages, fronts, and each receiver's route
+  between reps. Edit receiver designations on the webpage before entering VR.
+- Exit using **Exit VR** or the headset's system/browser controls. The webpage
+  restores its camera and shadows. Tracking/visibility loss pauses gameplay.
+
+Use a stationary boundary and the thumbstick for pocket movement. Floor tracking
+uses your real height; the tracked rig converts metres to the field's yard units.
+VR disables real-time shadows and uses 80% framebuffer scale and fixed foveation
+where supported. Actual Quest 3 frame rate, comfort, controller feel, and headset
+browser compatibility still require hardware testing; no performance target has
+been certified here.
+
+`node scripts/vr-smoke.mjs` exercises stereo session entry, controller movement,
+point-and-trigger passing, the floating toolbar, session exit and desktop recovery
+using the MIT-licensed IWER Quest emulator (a development dependency only).
+Emulation is not a substitute for testing on the headset.
+
+**Trips LT** has three receivers to the quarterback's left and one to the right.
+**Trips RT** mirrors it, with the running back remaining in the backfield. The
+existing **Gun Trips Right** option remains available.
+
+Field markers show only the editable receiver designation on a small translucent panel. Route guides are continuous, solid ribbons approximately eight inches wide, with rounded joins; the route toggle works on desktop, phone, and in VR.
+
+Player asset validation: `node scripts/player-asset-smoke.mjs` loads the actual GLB, checks yard scale, independent skeletons, removed horizontal catch motion, and hidden embedded football, and renders all three supplied clips.

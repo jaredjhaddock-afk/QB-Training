@@ -17,7 +17,7 @@ page.on('pageerror', error => errors.push(error.message));
 const state = () => page.evaluate(() => window.pocketLab.getState());
 try {
   await page.goto('http://127.0.0.1:5173', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForFunction(() => window.pocketLab);
+  await page.waitForFunction(() => window.pocketLab?.getState().visuals.playerModel === 'realistic-glb');
   assert.ok(await page.locator('.rotate-prompt').isVisible());
   assert.equal((await state()).paused, true);
   console.log('Portrait rotate prompt verified');
@@ -52,7 +52,7 @@ try {
   assert.deepEqual((await state()).receiverNames, teamNames);
   assert.deepEqual((await state()).receivers.map(receiver => receiver.path), routesBeforeRename);
   assert.equal(await page.locator('#route-4').getAttribute('aria-label'), 'RB receiver route');
-  assert.equal(await page.locator('#labels .player-label').nth(4).textContent(), '5 · RB');
+  assert.equal(await page.locator('#labels .player-label').nth(4).textContent(), 'RB');
   await page.screenshot({ path: '/workspace/pocket-lab-playbook.png' });
   await page.locator('#playbook-close').tap();
   assert.equal((await state()).formation, 'Gun Trips Right');
@@ -99,7 +99,7 @@ try {
   await page.locator('#playbook-open').tap();
   await page.locator('#playbook-close').tap();
   await page.reload();
-  await page.waitForFunction(() => window.pocketLab);
+  await page.waitForFunction(() => window.pocketLab?.getState().visuals.playerModel === 'realistic-glb');
   assert.deepEqual((await state()).receiverNames, teamNames);
   assert.equal(await page.locator('[data-receiver="RB"]').textContent(), 'RB');
   await page.locator('#playbook-open').tap();

@@ -4,12 +4,15 @@ import '@fontsource/dm-sans/400.css';
 import '@fontsource/dm-sans/700.css';
 import './style.css';
 import { createPlayer, animatePlayer } from './players.js';
+import { loadPlayerAsset, attachPlayerAsset, playerCatchPoint, settleCatch } from './player-asset.js';
 import { createTurfMaterials, loadEnvironment, addCrowd } from './environment.js';
 import { setupFirstPerson, movementDirection } from './first-person.js';
 import { createViewHands } from './view-hands.js';
 import { athlete, steer, runRoute, predictReceiver, receiverFacing, coverageDecision } from './simulation.js';
 import { defensiveFronts, defensiveAlignment } from './defense.js';
 import { createFootball, orientSpiral } from './football-ball.js';
+import { setupVR } from './vr.js';
+import { createRouteRibbon } from './route-display.js';
 import { cameraPose } from './camera.js';
 import { setupMobile } from './mobile.js';
 import { loadReceiverNames, setupReceiverNames } from './receiver-names.js';
@@ -34,7 +37,7 @@ const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.se
 const camera=new THREE.PerspectiveCamera(82,1,.08,350);scene.add(camera);
 const viewHands=createViewHands(camera);
 scene.add(new THREE.HemisphereLight('#cfdfec','#42533d',1.35));
-const visuals={environment:'loading',playerModel:'shared-articulated',crowd:0};
+const visuals={environment:'loading',playerModel:'loading',crowd:0};
 loadEnvironment(scene,renderer).then(()=>{visuals.environment='ready';}).catch(error=>{visuals.environment='fallback';console.warn('Using fallback daylight:',error.message);});
 const sun=new THREE.DirectionalLight('#ffe3b6',3.3);sun.position.set(-36,40,-26);sun.castShadow=true;sun.shadow.mapSize.set(matchMedia('(pointer: coarse)').matches?1024:2048,matchMedia('(pointer: coarse)').matches?1024:2048);Object.assign(sun.shadow.camera,{left:-36,right:36,top:58,bottom:-30,near:1,far:180});sun.shadow.bias=-.00015;sun.shadow.normalBias=.035;scene.add(sun);
 const mat=(color,roughness=.8)=>new THREE.MeshStandardMaterial({color,roughness});
@@ -59,7 +62,7 @@ const board=mesh(new THREE.PlaneGeometry(18,5),new THREE.MeshBasicMaterial({map:
 const goal=mat('#e0bd54');for(const z of [-39,79]){box(.18,3,.18,goal,0,1.5,z);box(6,.15,.15,goal,0,3,z);for(const x of [-3,3])box(.12,5,.12,goal,x,5.5,z);}
 
 function makePlayer(isOff,number,role){const model=createPlayer(isOff,number,role);scene.add(model);return model;}
-function place(g,p,time=0,moving=false,facing=null){
+function place(g,p,time=0,moving=false,facing=null,animation={}){
  const dx=p[0]-g.position.x,dz=p[1]-g.position.z,travel=Math.hypot(dx,dz);
  const dt=Math.max(.001,time-(g.userData.lastTime??time));g.userData.lastTime=time;
  if(time===0){g.userData.stride=0;g.position.y=0;}
@@ -73,41 +76,48 @@ function place(g,p,time=0,moving=false,facing=null){
  if(g.userData.role==='quarterback')g.rotation.y=0;
  const backpedal=facing!==null&&(dx*Math.sin(g.rotation.y)+dz*Math.cos(g.rotation.y))<0;
  g.userData.locomotion={speed,stride:g.userData.stride||0,backpedal};
- animatePlayer(g,time,speed>.12);
+ animatePlayer(g,time,speed>.12,animation);
 }
 const receivers=labels.map((_,i)=>({model:makePlayer(true,11+i),p:[0,0],path:[]}));
 const defenders=Array.from({length:11},(_,i)=>({model:makePlayer(false,21+i,i<4?'rusher':'defender'),p:[0,0],assignment:null}));
 const blockers=Array.from({length:5},(_,i)=>makePlayer(true,60+i,'blocker'));
 const qb=makePlayer(true,7,'quarterback');
+loadPlayerAsset().then(asset=>{
+ [...receivers.map(r=>r.model),...blockers,qb].forEach(player=>attachPlayerAsset(player,asset,true));
+ defenders.forEach(d=>attachPlayerAsset(d.model,asset,false));
+ visuals.playerModel='realistic-glb';sceneRevision++;
+}).catch(error=>{visuals.playerModel='procedural-fallback';console.warn('Using fallback players:',error.message);});
 const qbRing=mesh(new THREE.RingGeometry(.64,.76,48),new THREE.MeshBasicMaterial({color:0x7bffcb,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false}),0,.045,-5);qbRing.rotation.x=-Math.PI/2;
 const ball=createFootball();scene.add(ball);
 const routeGroup=new THREE.Group();scene.add(routeGroup);const zoneGroup=new THREE.Group();scene.add(zoneGroup);
-const targetButtons=labels.map((l,i)=>{const b=document.createElement('button');b.className='player-label';b.textContent=`${i+1} · ${l}`;b.style.width='52px';b.style.borderRadius='5px';b.setAttribute('aria-label',`Throw to ${l}`);b.addEventListener('click',()=>throwBall(i));$('labels').append(b);return b;});
+const targetButtons=labels.map((l,i)=>{const b=document.createElement('button');b.className='player-label';b.textContent=l;b.setAttribute('aria-label',`Throw to ${l}`);b.addEventListener('click',()=>throwBall(i));$('labels').append(b);return b;});
 let sceneRevision=0,lastRenderState='';
+let caughtPlayer=null;
 let phase='ready',elapsed=0,qpos=[0,-5],passes=0,completions=0,reps=0,flight=null,coverage='',keys=new Set(),sacked=false,qbody=athlete([0,-5]),observations=[];
 function clearGroup(group){for(const child of [...group.children]){child.geometry.dispose();child.material.dispose();group.remove(child);}}
-function reset(){sceneRevision++;keys.clear();input.reset();phase='ready';elapsed=0;flight=null;sacked=false;qpos=[0,-5];qbody=athlete(qpos);observations=[];coverage=$('coverage').value;const starts=formations[$('formation').value];clearGroup(routeGroup);clearGroup(zoneGroup);
- receivers.forEach((r,i)=>{r.motion=athlete(starts[i]);r.p=r.motion.p;r.route=$(`route-${i}`).value;r.path=routePoints(starts[i],r.route);place(r.model,r.p);r.model.rotation.y=0;const geom=new THREE.BufferGeometry().setFromPoints(r.path.map(p=>new THREE.Vector3(p[0],.08,p[1])));routeGroup.add(new THREE.Line(geom,new THREE.LineDashedMaterial({color:0xd6f56c,dashSize:.65,gapSize:.4,transparent:true,opacity:.65})));routeGroup.children.at(-1).computeLineDistances();});
+function reset(){sceneRevision++;caughtPlayer=null;keys.clear();input.reset();phase='ready';elapsed=0;flight=null;sacked=false;qpos=[0,-5];qbody=athlete(qpos);observations=[];coverage=$('coverage').value;const starts=formations[$('formation').value];clearGroup(routeGroup);clearGroup(zoneGroup);
+ receivers.forEach((r,i)=>{r.motion=athlete(starts[i]);r.p=r.motion.p;r.route=$(`route-${i}`).value;r.path=routePoints(starts[i],r.route);place(r.model,r.p);r.model.rotation.y=0;routeGroup.add(createRouteRibbon(r.path));});
  const assignments=defensiveAlignment($('front').value,coverage,starts);
  defenders.forEach((d,i)=>{d.assignment=assignments[i];d.model.userData.role=d.assignment.position==='DL'?'rusher':'defender';d.motion=athlete([d.assignment.alignX,d.assignment.alignZ]);d.p=d.motion.p;d.decision=null;place(d.model,d.p);d.model.rotation.y=Math.PI;if(['deep','zone'].includes(d.assignment.role)){const m=mesh(new THREE.CircleGeometry(d.assignment.role==='deep'?8:5,40),new THREE.MeshBasicMaterial({color:d.assignment.role==='deep'?0x7ccde0:0xf39b75,transparent:true,opacity:.12,depthWrite:false,side:THREE.DoubleSide}),d.assignment.x,.06,d.assignment.z,zoneGroup);m.rotation.x=-Math.PI/2;}});
  blockers.forEach((b,i)=>place(b,[(i-2)*1.7,-.6]));place(qb,qpos);ball.visible=true;ball.quaternion.identity();ball.position.set(.15,1.35,-4.75);$('result').classList.remove('visible');$('snap').disabled=false;$('status').innerHTML='<i class="dot"></i>PRE-SNAP';$('field-hint').textContent='Scan the coverage. Snap the ball when you’re ready.';$('read-tip').textContent=coverages[coverage].tip;$('read-title').textContent='THE PRE-SNAP READ';document.querySelectorAll('select').forEach(s=>s.disabled=false);targetButtons.forEach(b=>b.disabled=true);syncAids();mobile.sync(phase);nameEditor.setLocked(false);}
 function syncAids(){routeGroup.visible=$('show-routes').checked;zoneGroup.visible=$('show-zones').checked;$('routes-toggle').setAttribute('aria-pressed',String(routeGroup.visible));$('routes-toggle').textContent=`Routes: ${routeGroup.visible?'on':'off'}`;}
 function changeCamera(){
+ if(vr?.active)return;
  input.clear();keys.clear();if(document.pointerLockElement)document.exitPointerLock();
  const third=!isFirstPerson();$('camera-toggle').setAttribute('aria-pressed',String(third));$('camera-toggle').textContent=`View: ${third?'3rd':'1st'}`;
  document.body.classList.toggle('first-person',!third);
 }
 function toggleCamera(){$('camera-view').value=isFirstPerson()?'Third Person':'QB POV';changeCamera();}
 function toggleRoutes(){$('show-routes').checked=!$('show-routes').checked;syncAids();}
-function snap(){if(phase!=='ready'||mobile.isPaused())return;phase='live';reps++;$('reps').textContent=String(reps).padStart(2,'0');$('snap').disabled=true;document.querySelectorAll('select:not(#camera-view)').forEach(s=>s.disabled=true);targetButtons.forEach(b=>b.disabled=false);$('status').innerHTML='<i class="dot"></i>PLAY LIVE';$('field-hint').textContent='Read your receivers · tap a receiver button to pass';mobile.sync(phase);nameEditor.setLocked(true);}
-function finish(title,detail,complete=false){phase='done';if(complete)completions++;$('completion').textContent=passes?`${Math.round(completions/passes*100)}%`:'—';$('result-title').textContent=title;$('result-detail').textContent=detail;$('result').classList.add('visible');$('status').textContent='REP COMPLETE';$('field-hint').textContent='Reset to run it again or change the play.';targetButtons.forEach(b=>b.disabled=true);$('read-title').textContent='REP REVIEW';$('read-tip').textContent=detail;mobile.sync(phase);}
-function throwBall(i){if(phase!=='live'||mobile.isPaused())return;passes++;const r=receivers[i];const duration=Math.max(.45,Math.min(1.7,Math.hypot(r.p[0]-qpos[0],r.p[1]-qpos[1])/24));const end=predictReceiver(r.motion,r.path,duration);flight={i,start:[...qpos],end,duration,t:0};phase='flight';targetButtons.forEach(b=>b.disabled=true);$('status').textContent='BALL IN FLIGHT';mobile.sync(phase);}
-function update(dt){if(mobile.isPaused()||(phase!=='live'&&phase!=='flight'))return;elapsed+=dt;
- const stick=input.stick;const strafe=(keys.has('d')?1:0)-(keys.has('a')?1:0)+stick.strafe;const forward=(keys.has('w')?1:0)-(keys.has('s')?1:0)+stick.forward;
- const direction=movementDirection(isFirstPerson()?input.look.yaw:0,strafe,forward);const moving=phase==='live'&&Math.hypot(...direction)>.02;
+function snap(){if(phase!=='ready'||gamePaused())return;phase='live';reps++;$('reps').textContent=String(reps).padStart(2,'0');$('snap').disabled=true;document.querySelectorAll('select:not(#camera-view)').forEach(s=>s.disabled=true);targetButtons.forEach(b=>b.disabled=false);$('status').innerHTML='<i class="dot"></i>PLAY LIVE';$('field-hint').textContent='Read your receivers · tap a receiver button to pass';mobile.sync(phase);nameEditor.setLocked(true);}
+function finish(title,detail,complete=false){phase='done';if(complete){completions++;caughtPlayer=receivers[flight.i].model;}$('completion').textContent=passes?`${Math.round(completions/passes*100)}%`:'—';$('result-title').textContent=title;$('result-detail').textContent=detail;$('result').classList.add('visible');$('status').textContent='REP COMPLETE';$('field-hint').textContent='Reset to run it again or change the play.';targetButtons.forEach(b=>b.disabled=true);$('read-title').textContent='REP REVIEW';$('read-tip').textContent=detail;mobile.sync(phase);}
+function throwBall(i){if(phase!=='live'||gamePaused())return;passes++;const r=receivers[i];const duration=Math.max(.45,Math.min(1.7,Math.hypot(r.p[0]-qpos[0],r.p[1]-qpos[1])/24));const end=predictReceiver(r.motion,r.path,duration);flight={i,start:[...qpos],end,duration,t:0};phase='flight';targetButtons.forEach(b=>b.disabled=true);$('status').textContent='BALL IN FLIGHT';mobile.sync(phase);}
+function update(dt){if(gamePaused()||(phase!=='live'&&phase!=='flight'))return;elapsed+=dt;
+ const stick=vr.active?vr.stick:input.stick;const strafe=(keys.has('d')?1:0)-(keys.has('a')?1:0)+stick.strafe;const forward=(keys.has('w')?1:0)-(keys.has('s')?1:0)+stick.forward;
+ const direction=movementDirection(vr.active?vr.yaw:isFirstPerson()?input.look.yaw:0,strafe,forward);const moving=phase==='live'&&Math.hypot(...direction)>.02;
  if(phase==='live'){qpos=steer(qbody,[qpos[0]+direction[0]*4,qpos[1]+direction[1]*4],dt,Math.hypot(...direction)*4,18);qpos[0]=THREE.MathUtils.clamp(qpos[0],-24,24);qpos[1]=THREE.MathUtils.clamp(qpos[1],-15,-1);}
- place(qb,qpos,elapsed,moving);if(phase==='flight')animatePlayer(qb,elapsed,false,{throwProgress:Math.min(1,flight.t/.55)});
- receivers.forEach((r,index)=>{const next=runRoute(r.motion,r.path,dt);const m=Math.hypot(next[0]-r.p[0],next[1]-r.p[1])>.001;r.p=next;place(r.model,r.p,elapsed,m,receiverFacing(r.route,r.motion,r.path,qpos));if(phase==='flight'&&flight.i===index&&flight.t/flight.duration>.55)animatePlayer(r.model,elapsed,m,{catching:true});});
+ place(qb,qpos,elapsed,moving,null,{throwProgress:phase==='flight'?Math.min(1,flight.t/.55):null});
+ receivers.forEach((r,index)=>{const next=runRoute(r.motion,r.path,dt);const m=Math.hypot(next[0]-r.p[0],next[1]-r.p[1])>.001;r.p=next;place(r.model,r.p,elapsed,m,receiverFacing(r.route,r.motion,r.path,qpos),{catching:phase==='flight'&&flight.i===index&&flight.t/flight.duration>.55,catchProgress:flight?THREE.MathUtils.clamp((flight.t/flight.duration-.55)/.45,0,1):0});});
  observations.push({time:elapsed,receivers:receivers.map(r=>({p:[...r.p],v:[...r.motion.v]}))});
  while(observations.length>1&&observations[1].time<=elapsed-.18)observations.shift();
  const observed=observations[0].receivers;
@@ -122,19 +132,26 @@ function update(dt){if(mobile.isPaused()||(phase!=='live'&&phase!=='flight'))ret
  });
  blockers.forEach(b=>{place(b,[b.position.x,-.6-Math.min(1.3,elapsed*.22)],elapsed,true,0);});
  if(phase==='live')ball.position.set(qpos[0]+.15,1.35,qpos[1]+.25);
- if(phase==='flight'){flight.t+=dt;const t=Math.min(1,flight.t/flight.duration);ball.position.set(THREE.MathUtils.lerp(flight.start[0],flight.end[0],t),1.5+Math.sin(t*Math.PI)*Math.min(7,flight.duration*4),THREE.MathUtils.lerp(flight.start[1],flight.end[1],t));orientSpiral(ball,flight);
+ if(phase==='flight'){flight.t+=dt;const t=Math.min(1,flight.t/flight.duration);ball.position.set(THREE.MathUtils.lerp(flight.start[0],flight.end[0],t),1.5+Math.sin(t*Math.PI)*Math.min(7,flight.duration*4),THREE.MathUtils.lerp(flight.start[1],flight.end[1],t));orientSpiral(ball,flight);if(t>.85){const hands=playerCatchPoint(receivers[flight.i].model,new THREE.Vector3());if(hands)ball.position.lerp(hands,THREE.MathUtils.smoothstep(t,.85,1));}
   if(t>.55&&ball.position.y<2.5&&defenders.some(d=>Math.hypot(d.p[0]-ball.position.x,d.p[1]-ball.position.z)<.75)){finish('Intercepted','A defender broke on the ball. Look for clear throwing lanes and release before the coverage closes.');}
   else if(t===1){const nearest=Math.min(...defenders.map(d=>Math.hypot(d.p[0]-flight.end[0],d.p[1]-flight.end[1])));const yards=Math.max(0,Math.round(flight.end[1]));if(nearest<1.35)finish('Pass broken up',`${labels[flight.i]} was covered at the catch point. Try a different route combination or throw earlier.`);else finish('Complete',`${labels[flight.i]} caught the pass for ${yards} yards${yards>=10?' — first down':''}. Released in ${(elapsed-flight.duration).toFixed(1)}s with ${nearest.toFixed(1)} yards of separation.`,true);}
  }
  if(phase==='live'&&elapsed>12)finish('Rep ended','The play reached the 12-second practice limit. Reset and work on making an earlier decision.');
 }
+let vr=null;
+const gamePaused=()=>vr?.active?vr.paused:mobile.isPaused();
 const isFirstPerson=()=>$('camera-view').value==='QB POV';
-const input=setupFirstPerson({viewport,canvas:renderer.domElement,enabled:isFirstPerson,paused:()=>mobile.isPaused()});
+const input=setupFirstPerson({viewport,canvas:renderer.domElement,enabled:()=>isFirstPerson()&&!vr?.active,paused:()=>gamePaused()});
 const mobile=setupMobile({viewport,labels,onThrow:throwBall,clearMovement:()=>{keys.clear();input.clear();}});
-const nameEditor=setupReceiverNames({names:labels,defaults:defaultLabels,onChange:()=>{targetButtons.forEach((button,i)=>{button.textContent=`${i+1} · ${labels[i]}`;button.setAttribute('aria-label',`Throw to ${labels[i]}`);});mobile.refreshLabels();}});
+const nameEditor=setupReceiverNames({names:labels,defaults:defaultLabels,onChange:()=>{targetButtons.forEach((button,i)=>{button.textContent=labels[i];button.setAttribute('aria-label',`Throw to ${labels[i]}`);});mobile.refreshLabels();}});
+vr=setupVR({renderer,scene,camera,receivers,labels,
+ state:()=>({phase,quarterback:[...qpos],cameraMode:$('camera-view').value,routesVisible:routeGroup.visible,result:$('result-title').textContent}),
+ actions:{snap,reset,pass:throwBall,routes:toggleRoutes,setting:field=>{if(phase!=='ready'&&phase!=='done')return;const select=$(field);select.selectedIndex=(select.selectedIndex+1)%select.options.length;reset();}},clearInput:()=>{keys.clear();input.clear();},
+ onSessionChange:(active,mode)=>{if(document.pointerLockElement)document.exitPointerLock();if(active){document.querySelector('dialog')?.close();$('camera-view').value='QB POV';}else{if(mode)$('camera-view').value=mode;changeCamera();resize();sceneRevision++;}previous=performance.now();}
+});
 $('snap').onclick=snap;$('reset').onclick=reset;for(const [id,action] of [['snap',snap],['reset',reset]])$(id).addEventListener('pointerdown',event=>{if(event.pointerType==='touch'&&!$(id).disabled){event.preventDefault();action();}});document.querySelectorAll('select:not(#camera-view)').forEach(s=>s.addEventListener('change',reset));$('camera-view').addEventListener('change',changeCamera);$('camera-toggle').onclick=toggleCamera;$('routes-toggle').onclick=toggleRoutes;$('show-routes').onchange=syncAids;$('show-zones').onchange=syncAids;
 window.addEventListener('keydown',e=>{if(['SELECT','INPUT'].includes(document.activeElement?.tagName)&&e.code!=='Escape')return;const k=e.key.toLowerCase();if([' ','w','a','s','d','r','1','2','3','4','5','arrowleft','arrowright','arrowup','arrowdown','c','v'].includes(k))e.preventDefault();keys.add(k);if(e.repeat)return;if(e.code==='Space')snap();if(k==='r')reset();if(k==='c')toggleCamera();if(k==='v')toggleRoutes();if(/^[1-5]$/.test(k))throwBall(Number(k)-1);});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear());document.querySelectorAll('[data-move]').forEach(b=>{b.addEventListener('pointerdown',e=>{b.setPointerCapture(e.pointerId);keys.add(b.dataset.move);});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>keys.delete(b.dataset.move));});
-function resize(){const w=viewport.clientWidth,h=viewport.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}new ResizeObserver(resize).observe(viewport);reset();resize();let previous=performance.now();
-function frame(now){requestAnimationFrame(frame);const dt=Math.min(.5,(now-previous)/1000)*($('slow').checked?.65:1);previous=now;input.update(dt,keys);if(mobile.isPaused())return;for(let remaining=dt;remaining>0;remaining-=.02)update(Math.min(.02,remaining));const mode=$('camera-view').value;const pose=cameraPose(mode,qpos,camera.aspect,input.look);qb.visible=pose.showQuarterback;qbRing.visible=pose.showQuarterback;qbRing.position.set(qpos[0],.045,qpos[1]);camera.fov=pose.fov;camera.updateProjectionMatrix();document.querySelector('.view-name').textContent=`QB CAM / ${mode.toUpperCase()}`;camera.position.set(...pose.position);camera.lookAt(...pose.target);camera.updateMatrixWorld();viewHands.update({visible:!pose.showQuarterback,phase,time:elapsed,moving:qb.userData.visual.moving,throwProgress:phase==='flight'?flight.t/.55:null});ball.visible=pose.showQuarterback||phase==='flight'||phase==='done';$('clock').textContent=`${elapsed.toFixed(1)}s`;receivers.forEach((r,i)=>{const v=new THREE.Vector3(r.p[0],2.7,r.p[1]).project(camera);targetButtons[i].style.left=`${(v.x*.5+.5)*viewport.clientWidth}px`;targetButtons[i].style.top=`${(-v.y*.5+.5)*viewport.clientHeight}px`;targetButtons[i].style.display=v.z<1&&Math.abs(v.x)<1&&Math.abs(v.y)<1?'block':'none';});const renderState=[sceneRevision,phase,elapsed,qpos[0],qpos[1],input.look.yaw,input.look.pitch,mode,renderer.domElement.width,renderer.domElement.height,routeGroup.visible,zoneGroup.visible,visuals.environment].join('|');if(renderState!==lastRenderState){renderer.render(scene,camera);lastRenderState=renderState;}}requestAnimationFrame(frame);
+function resize(){if(renderer.xr.isPresenting)return;const w=viewport.clientWidth,h=viewport.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}new ResizeObserver(resize).observe(viewport);reset();resize();let previous=performance.now();
+function frame(now,xrFrame){const dt=Math.min(.5,(now-previous)/1000)*($('slow').checked?.65:1);previous=now;const roomDelta=vr.poll(xrFrame);if(vr.active&&!vr.paused){qpos[0]+=roomDelta[0];qpos[1]+=roomDelta[1];qbody.p=qpos;}input.update(dt,keys);if(gamePaused()){if(vr.active)renderer.render(scene,camera);return;}for(let remaining=dt;remaining>0;remaining-=.02)update(Math.min(.02,remaining));if(phase==='done'&&caughtPlayer&&settleCatch(caughtPlayer,dt)){playerCatchPoint(caughtPlayer,ball.position);sceneRevision++;}if(vr.active){qb.visible=false;qbRing.visible=false;viewHands.update({visible:false,phase,time:elapsed,moving:false});ball.visible=phase==='flight'||phase==='done';vr.renderUI();renderer.render(scene,camera);return;}const mode=$('camera-view').value;const pose=cameraPose(mode,qpos,camera.aspect,input.look);qb.visible=pose.showQuarterback;qbRing.visible=pose.showQuarterback;qbRing.position.set(qpos[0],.045,qpos[1]);camera.fov=pose.fov;camera.updateProjectionMatrix();document.querySelector('.view-name').textContent=`QB CAM / ${mode.toUpperCase()}`;camera.position.set(...pose.position);camera.lookAt(...pose.target);camera.updateMatrixWorld();viewHands.update({visible:!pose.showQuarterback,phase,time:elapsed,moving:qb.userData.visual.moving,throwProgress:phase==='flight'?flight.t/.55:null});ball.visible=pose.showQuarterback||phase==='flight'||phase==='done';$('clock').textContent=`${elapsed.toFixed(1)}s`;receivers.forEach((r,i)=>{const v=new THREE.Vector3(r.p[0],2.7,r.p[1]).project(camera);targetButtons[i].style.left=`${(v.x*.5+.5)*viewport.clientWidth}px`;targetButtons[i].style.top=`${(-v.y*.5+.5)*viewport.clientHeight}px`;targetButtons[i].style.display=v.z<1&&Math.abs(v.x)<1&&Math.abs(v.y)<1?'block':'none';});const renderState=[sceneRevision,phase,elapsed,qpos[0],qpos[1],input.look.yaw,input.look.pitch,mode,renderer.domElement.width,renderer.domElement.height,routeGroup.visible,zoneGroup.visible,visuals.environment].join('|');if(renderState!==lastRenderState){renderer.render(scene,camera);lastRenderState=renderState;}}renderer.setAnimationLoop(frame);
 // Read-only state for smoke tests and future training telemetry.
-window.pocketLab={getState:()=>({phase,elapsed,reps,passes,completions,coverage,front:$('front').value,formation:$('formation').value,receivers:receivers.map(r=>({route:r.route,facing:r.model.rotation.y,velocity:[...r.motion.v],position:[...r.p],path:r.path.map(p=>[...p])})),quarterback:[...qpos],defenders:defenders.map(d=>({position:[...d.p],velocity:[...d.motion.v],role:d.assignment.role,personnel:d.assignment.position,name:d.assignment.name,alignment:[d.assignment.alignX,d.assignment.alignZ],decision:d.decision?.state,threat:d.decision?.threat})),defenderCount:defenders.length,sacked,visuals:{...visuals},renderStats:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles},quarterbackPose:{...qb.userData.visual},look:input.look,stick:input.stick,cameraMode:$('camera-view').value,routesVisible:routeGroup.visible,receiverNames:[...labels],paused:mobile.isPaused(),passTarget:flight?labels[flight.i]:null})};
+window.pocketLab={getState:()=>({phase,elapsed,reps,passes,completions,vrActive:vr.active,coverage,front:$('front').value,formation:$('formation').value,receivers:receivers.map(r=>({route:r.route,facing:r.model.rotation.y,velocity:[...r.motion.v],position:[...r.p],path:r.path.map(p=>[...p])})),quarterback:[...qpos],defenders:defenders.map(d=>({position:[...d.p],velocity:[...d.motion.v],role:d.assignment.role,personnel:d.assignment.position,name:d.assignment.name,alignment:[d.assignment.alignX,d.assignment.alignZ],decision:d.decision?.state,threat:d.decision?.threat})),defenderCount:defenders.length,sacked,visuals:{...visuals},renderStats:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles},quarterbackPose:{...qb.userData.visual},look:input.look,stick:input.stick,cameraMode:$('camera-view').value,routesVisible:routeGroup.visible,receiverNames:[...labels],paused:gamePaused(),passTarget:flight?labels[flight.i]:null})};

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { animateAsset } from './player-asset.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // Original shared football-player geometry. Every player uses these same cached
@@ -23,8 +24,8 @@ const common = {
   cage: material('#aeb7b2', .35, .65), visor: material('#152322', .18, .25),
 };
 const teams = [
-  { jersey: material('#192f35', .91), helmet: material('#ddd4ad', .26, .25), trim: material('#cee980', .7) },
-  { jersey: material('#a3372c', .91), helmet: material('#273136', .29, .25), trim: material('#e7dbbf', .7) },
+  { jersey: material('#bc172b', .91), helmet: material('#b9bec2', .26, .25), trim: material('#ffffff', .7) },
+  { jersey: material('#172d50', .91), helmet: material('#d5d9dc', .29, .25), trim: material('#ffffff', .7) },
 ];
 let uniformDetail, contactMaterial;
 function applyUniformDetail() {
@@ -184,12 +185,13 @@ export function createPlayer(isOffense, number, role = 'receiver') {
     contactMaterial=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(canvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1});
   }
   const contact=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.1),contactMaterial);
-  contact.rotation.x=-Math.PI/2;contact.position.y=.025;root.add(contact);
+  contact.userData.contactShadow=true;contact.rotation.x=-Math.PI/2;contact.position.y=.025;root.add(contact);
   animatePlayer(root, 0, false);
   return root;
 }
 
-export function animatePlayer(player, time, moving, { throwProgress = null, catching = false } = {}) {
+export function animatePlayer(player, time, moving, { throwProgress = null, catching = false, catchProgress = 0 } = {}) {
+  if (player.userData.asset) return animateAsset(player,time,moving,{throwProgress,catching,catchProgress});
   const { body, head, arms, legs } = player.userData.rig;
   const quarterback = player.userData.role === 'quarterback';
   const lineman = player.userData.role === 'blocker' || player.userData.role === 'rusher';
