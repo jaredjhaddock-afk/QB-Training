@@ -19,6 +19,8 @@ Choose a formation, assign each receiver a hot route, then choose coverage and a
 - **WASD** moves relative to the direction you are looking, behind the line of scrimmage.
 - **Mouse** looks around independently: click the field to capture the mouse, and press **Esc** to release it. If mouse capture is unavailable, drag the field instead. Arrow keys can also look around.
 - **QB POV** is the default first-person camera; look left/right or up/down to scan the defense before and during a rep.
+- **View: 1st / 3rd** (or **C**) switches between eye-level QB POV and an elevated camera behind the quarterback. Switch before or during a rep without resetting it.
+- **Routes: on / off** (or **V**) shows or hides route lines, including during play. The button stays synchronized with the playbook checkbox.
 - **R** or **Reset play** resets the same play; settings unlock for adjustments.
 - Optional route/zone overlays and slow motion support learning.
 
@@ -63,6 +65,7 @@ node scripts/mobile-smoke.mjs
 node scripts/first-person-smoke.mjs
 node scripts/graphics-smoke.mjs
 node scripts/coverage-smoke.mjs
+node scripts/view-toggle-smoke.mjs
 ```
 
 The browser smoke test expects the development server on port 5173 and Chromium at `/usr/bin/chromium` (or set `CHROMIUM_PATH` to an installed Chromium executable).

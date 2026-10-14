@@ -63,3 +63,12 @@
 .mobile-notice{position:fixed;z-index:20;top:80px;left:50%;transform:translateX(-50%);max-width:80vw;width:400px;background:#14271cf5;border:1px solid #a1ba7e;border-radius:8px;padding:12px;font-size:12px;text-align:center}
 @media(orientation:portrait){.mobile-game .rotate-prompt{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;background:radial-gradient(ellipse at 50% 30%,#284837,#0e1c17 70%)}.rotate-prompt h2{font-size:34px}.rotate-prompt p:not(.eyebrow){color:#bdcdbd;font-size:14px;line-height:1.7;max-width:270px}.rotate-prompt small{font-size:11px;color:#8fa38f}.rotate-device{height:65px;width:110px;border:3px solid #d6f56c;border-radius:12px;display:grid;place-items:center;font-size:38px;color:#d6f56c;margin-bottom:30px}.mobile-game .field-top,.mobile-game .controls{visibility:hidden}}
 @media(orientation:landscape) and (max-height:380px){.mobile-game .field-badge,.mobile-game #clock{top:60px}.mobile-game .field-bottom{display:none}.mobile-game .result-card h2{font-size:24px}.mobile-game .result-card{max-width:65%;margin-bottom:10px}.mobile-game .controls{gap:5px}.mobile-game .touch-targets{gap:6px}}
+
+.view-tools{display:flex;gap:6px;margin-left:auto;pointer-events:auto}
+.view-tools button{min-height:44px;padding:8px 10px;border:1px solid #61745c;border-radius:7px;background:#17271ef2;color:#e8ece5;font-size:12px;white-space:nowrap;touch-action:manipulation}
+.view-tools button[aria-pressed="true"]{border-color:#d6f56c;color:#d6f56c}
+.mobile-game .view-tools{position:fixed;left:calc(env(safe-area-inset-left,0px) + 12px);top:calc(env(safe-area-inset-top,0px) + 10px);z-index:4;margin:0}
+.mobile-game .field-top{transform:none;left:0;right:0;justify-content:center;background:transparent}
+.mobile-game .field-top .status{background:#10251cbb;border-radius:6px;padding:12px}
+.mobile-game .mobile-brand{visibility:hidden}
+@media(max-width:650px){.mobile-game .view-tools{gap:4px}.mobile-game .view-tools button{padding:8px;font-size:11px}}

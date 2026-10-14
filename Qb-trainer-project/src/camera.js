@@ -7,6 +7,9 @@ export function cameraPose(mode, quarterback, aspect, look = { yaw: 0, pitch: -.
     const forward = [-Math.sin(look.yaw) * Math.cos(look.pitch), Math.sin(look.pitch), Math.cos(look.yaw) * Math.cos(look.pitch)];
     return { position, target: position.map((value, i) => value + forward[i] * 20), fov: 82, showQuarterback: false };
   }
+  if (mode === 'Third Person') {
+    return { position: [x, 8, z - Math.max(16, 30 / aspect)], target: [x, 1.2, z + 14], fov: 76, showQuarterback: true };
+  }
   if (mode === 'Wide QB') {
     return { position: [x, 6.2, z - Math.max(12, 30 / aspect)], target: [x, 1.6, z + 20], fov: 76, showQuarterback: true };
   }
