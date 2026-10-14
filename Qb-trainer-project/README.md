@@ -67,6 +67,7 @@ node scripts/graphics-smoke.mjs
 node scripts/coverage-smoke.mjs
 node scripts/view-toggle-smoke.mjs
 node scripts/front-smoke.mjs
+node scripts/route-smoke.mjs
 ```
 
 The browser smoke test expects the development server on port 5173 and Chromium at `/usr/bin/chromium` (or set `CHROMIUM_PATH` to an installed Chromium executable).
@@ -100,3 +101,17 @@ at 1.25 yards and joins the four-man base rush. Coverage changes never silently
 change personnel. A 4–4 Cover 4 rotates a linebacker into a deep quarter after the
 snap; heavy personnel against spread formations can create linebacker/receiver
 matchups. Coverage-zone overlays show drop landmarks, not starting positions.
+
+
+### Updated hot routes
+
+- **Post:** seven-yard vertical stem before the inward post break.
+- **Slant (3 yd)** and **Slant (1 yd):** three- or one-yard stems followed by the
+  same 60-degree inward turn, measured from straight upfield. Wideout paths extend
+  across the middle rather than stopping on their original side of the field.
+- **Out (5 yd)** and **Out (10 yd):** five- or ten-yard stems, then a square out.
+- **Spot:** five yards of total diagonal travel at 55 degrees inward, then settle
+  and turn toward the quarterback. It holds that spot for the pass.
+
+Stem distances are measured from the receiver's starting alignment. Route lines,
+receiver movement, and pass-leading prediction use the same path definitions.

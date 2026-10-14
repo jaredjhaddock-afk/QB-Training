@@ -82,3 +82,9 @@ export function coverageDecision(assignment, position, observed, qb, coverage, e
   }
   return { target, speed, state, threat };
 }
+
+// A spot settles at its endpoint and presents its chest to the quarterback.
+export function receiverFacing(route, body, path, quarterback) {
+  if(route!=='Spot'||distance(body.p,path.at(-1))>.35||Math.hypot(...body.v)>1)return null;
+  return Math.atan2(quarterback[0]-body.p[0],quarterback[1]-body.p[1]);
+}

@@ -4,7 +4,7 @@ export const formations = {
   'Singleback': [[22,0],[10,-1],[-7,0],[-22,-1],[0,-8]],
 };
 export const labels = ['X','H','Y','Z','R'];
-export const routes = ['Go','Slant','Out','In','Curl','Corner','Post','Flat','Drag','Wheel'];
+export const routes = ['Go','Slant (3 yd)','Slant (1 yd)','Out (5 yd)','Out (10 yd)','Spot','In','Curl','Corner','Post','Flat','Drag','Wheel'];
 export const coverages = {
   'Cover 1': {type:'man', deep:1, spy:false, tip:'One deep safety. Watch the leverage of the man defenders; crossers and out-breaking routes can create separation.'},
   'Cover 2 Man': {type:'man', deep:2, spy:false, tip:'Two high safeties over man coverage. Work underneath with crossers and breaking routes.'},
@@ -16,7 +16,22 @@ export const coverages = {
 };
 export function routePoints(start, route) {
   const [x,z]=start, inside=x>0?-1:1, outside=-inside;
-  const paths={Go:[[0,40]],Slant:[[0,4],[inside*18,23]],Out:[[0,10],[outside*14,10]],In:[[0,12],[inside*24,12]],Curl:[[0,13],[inside*1,10]],Corner:[[0,12],[outside*13,28]],Post:[[0,12],[inside*16,32]],Flat:[[outside*12,3]],Drag:[[0,3],[inside*30,4]],Wheel:[[outside*9,3],[outside*11,28]]};
+  // Angles are measured inward from straight upfield; preserve the angle
+  // when shortening a diagonal to keep its endpoint within the sidelines.
+  const slantAcross=Math.min(32,25+Math.abs(x));
+  const slantRise=slantAcross/Math.tan(Math.PI/3);
+  const spotAngle=55*Math.PI/180;
+  const paths={
+    Go:[[0,40]],
+    'Slant (3 yd)':[[0,3],[inside*slantAcross,3+slantRise]],
+    'Slant (1 yd)':[[0,1],[inside*slantAcross,1+slantRise]],
+    'Out (5 yd)':[[0,5],[outside*14,5]],
+    'Out (10 yd)':[[0,10],[outside*14,10]],
+    Spot:[[inside*5*Math.sin(spotAngle),5*Math.cos(spotAngle)]],
+    In:[[0,12],[inside*24,12]],Curl:[[0,13],[inside*1,10]],
+    Corner:[[0,12],[outside*13,28]],Post:[[0,7],[inside*16,27]],
+    Flat:[[outside*12,3]],Drag:[[0,3],[inside*30,4]],Wheel:[[outside*9,3],[outside*11,28]],
+  };
   return [[x,z],...paths[route].map(([dx,dz])=>[Math.max(-25,Math.min(25,x+dx)),z+dz])];
 }
 export function pointOnRoute(points,distance) {
