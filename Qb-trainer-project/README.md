@@ -16,7 +16,9 @@ Choose a formation, assign each receiver a hot route, then choose coverage and a
 
 - **Space** or **Snap ball** starts a rep.
 - **1–5** or clicking a receiver throws to X, H, Y, Z, R respectively. Passes lead the selected route.
-- **WASD** moves the quarterback behind the line of scrimmage. Touch controls support lateral movement and retreat.
+- **WASD** moves relative to the direction you are looking, behind the line of scrimmage.
+- **Mouse** looks around independently: click the field to capture the mouse, and press **Esc** to release it. If mouse capture is unavailable, drag the field instead. Arrow keys can also look around.
+- **QB POV** is the default first-person camera; look left/right or up/down to scan the defense before and during a rep.
 - **R** or **Reset play** resets the same play; settings unlock for adjustments.
 - Optional route/zone overlays and slow motion support learning.
 
@@ -27,8 +29,11 @@ the page header and setup sidebar are replaced by an in-game **Playbook** panel.
 Choose formations, routes, and coverage between reps, then tap **Back to field**.
 Tap **Snap ball**, then tap the fixed **X / H / Y / Z / R** button for the receiver
 you want to pass to. These buttons stay in place even when receivers move offscreen.
-Left-thumb arrow buttons move the QB in all four directions. Tap **Reset play**
-to run it again or unlock the playbook.
+Drag the **left-thumb joystick** to move. Drag the **right side of the field** to
+look around independently. Movement follows your viewing direction. These gestures
+use separate touch pointers, so you can move and look simultaneously; a receiver
+button accepts a third touch to pass. Releasing or cancelling a gesture stops that
+input. Tap **Reset play** to run it again and recenter the view.
 
 Portrait orientation displays a rotate prompt and pauses the rep. Switching apps
 also pauses play. **Full screen** requests browser fullscreen and landscape lock
@@ -55,14 +60,18 @@ npm test
 npm run build
 node scripts/smoke.mjs
 node scripts/mobile-smoke.mjs
+node scripts/first-person-smoke.mjs
+node scripts/graphics-smoke.mjs
 ```
 
 The browser smoke test expects the development server on port 5173 and Chromium at `/usr/bin/chromium` (or set `CHROMIUM_PATH` to an installed Chromium executable).
 
 ## Scope and next graphics milestone
 
-All players share one procedural model and running animation, differentiated by uniform and number. The scene includes a perspective QB camera, stadium seating, shadows, field markings, and animated ball flight. The default QB Follow camera sits low and close behind the quarterback, centered on the pocket with a wide horizontal lens, following the supplied camera references. A ground ring identifies the controlled player. Wide QB provides the raised training view; Helmet POV provides a first-person view.
+The default camera is **QB POV**, an eye-level first-person view with visible hands and independent looking/movement. QB Follow and Wide QB remain optional training views.
 
-Coverage uses simplified man tracking and zone pursuit. Blocking uses timed pressure release; collision-based blocking, tackling, authentic coverage checks, receiver catch animations, and ball carrying after a catch are not implemented. The front selections change alignment; they do not simulate complete personnel packages. A rep ends at the catch point.
+All players share one original articulated football model and pose system, differentiated by uniform and number. The geometry is shared across players and combined into skinned meshes to reduce draw calls. Models include helmets, face cages, shoulder pads, uniforms, gloves, and cleats, with running, throwing, and reaching-to-catch poses. The field uses generated turf detail and a crowd rendered through instancing. A locally bundled CC0 HDR environment provides the sky and reflections; a plain daylight fallback keeps the game playable if the HDR fails to load. [Asset credits and license provenance](public/assets/CREDITS.md) document the free asset. No character model from a third party is included.
+
+Coverage uses simplified man tracking and zone pursuit. Blocking uses timed pressure release; collision-based blocking, tackling, authentic coverage checks, motion-captured catch sequences, and ball carrying after a catch are not implemented. The front selections change alignment; they do not simulate complete personnel packages. A rep ends at the catch point.
 
 The user's visual target is Madden-level fidelity with one shared character model. Achieving that remains outstanding: replace the procedural model with a licensed high-detail rigged football player, shared locomotion/throw/catch animation set, PBR uniforms and equipment, and higher-quality stadium assets. No proprietary Madden assets are included. This first build validates the interaction and training loop, not that graphics target.

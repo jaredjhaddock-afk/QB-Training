@@ -25,6 +25,12 @@ export function setupMobile({ viewport, labels, onThrow, clearMovement }) {
     button.setAttribute('aria-label', `Pass to receiver ${label}`);
     button.textContent = label;
     button.disabled = true;
+    button.addEventListener('pointerdown', event => {
+      if (event.pointerType === 'touch' && !button.disabled) {
+        event.preventDefault();
+        onThrow(index);
+      }
+    });
     button.addEventListener('click', () => onThrow(index));
     targets.append(button);
     return button;

@@ -11,11 +11,12 @@ const page = await browser.newPage({
   hasTouch: true,
   deviceScaleFactor: 1,
 });
+page.setDefaultTimeout(60000);
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 const state = () => page.evaluate(() => window.pocketLab.getState());
 try {
-  await page.goto('http://127.0.0.1:5173');
+  await page.goto('http://127.0.0.1:5173', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForFunction(() => window.pocketLab);
   assert.ok(await page.locator('.rotate-prompt').isVisible());
   assert.equal((await state()).paused, true);

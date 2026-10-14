@@ -1,9 +1,11 @@
 // Low, centered third-person framing, based on the supplied camera references.
 // Keep a wide horizontal lens on phones without pulling the camera far away.
-export function cameraPose(mode, quarterback, aspect) {
+export function cameraPose(mode, quarterback, aspect, look = { yaw: 0, pitch: -.06 }) {
   const [x, z] = quarterback;
-  if (mode === 'Helmet POV') {
-    return { position: [x, 1.85, z + .35], target: [x, 1.6, z + 20], fov: 105, showQuarterback: false };
+  if (mode === 'QB POV' || mode === 'Helmet POV') {
+    const position = [x, 1.85, z + .10];
+    const forward = [-Math.sin(look.yaw) * Math.cos(look.pitch), Math.sin(look.pitch), Math.cos(look.yaw) * Math.cos(look.pitch)];
+    return { position, target: position.map((value, i) => value + forward[i] * 20), fov: 82, showQuarterback: false };
   }
   if (mode === 'Wide QB') {
     return { position: [x, 6.2, z - Math.max(12, 30 / aspect)], target: [x, 1.6, z + 20], fov: 76, showQuarterback: true };
