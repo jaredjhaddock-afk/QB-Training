@@ -1,0 +1,101 @@
+import * as THREE from 'three';
+import '@fontsource/barlow-condensed/600.css';
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/700.css';
+import './style.css';
+import { formations, labels, routes, coverages, routePoints, pointOnRoute, coverageAssignments, moveToward } from './football.js';
+
+const app=document.querySelector('#app');
+app.innerHTML=`
+<header><div class="brand"><span class="brand-icon">⌁</span><div>POCKET LAB<small>QUARTERBACK DEVELOPMENT</small></div></div><div class="top-tag"><span>●</span> PRACTICE FACILITY</div></header>
+<main><div class="intro"><div><p class="eyebrow">READ. REACT. REPEAT.</p><h1>Your next rep starts here.</h1><p>Build the play. Read the coverage. Own the pocket.</p></div><div class="session"><div><strong id="reps">00</strong><small>REPS TAKEN</small></div><div><strong id="completion">—</strong><small>COMPLETION</small></div></div></div>
+<div class="layout"><aside class="panel sidebar"><section class="panel-section"><div class="section-title"><h2>OFFENSE</h2><span class="step">01 / BUILD</span></div><label class="caption" for="formation">FORMATION</label><select id="formation">${Object.keys(formations).map(x=>`<option>${x}</option>`).join('')}</select><label class="caption">RECEIVER HOT ROUTES</label><div id="route-controls">${labels.map((l,i)=>`<div class="route-row"><span class="receiver-key">${l}</span><select aria-label="${l} receiver route" id="route-${i}">${routes.map(r=>`<option>${r}</option>`).join('')}</select></div>`).join('')}</div><p class="section-note">Receiver letters match the targets on the field. Keys 1–5 throw to X, H, Y, Z, R.</p></section>
+<section class="panel-section"><div class="section-title"><h2>DEFENSE</h2><span class="step">02 / READ</span></div><label class="caption" for="coverage">COVERAGE</label><select id="coverage">${Object.keys(coverages).map(x=>`<option ${x==='Cover 3'?'selected':''}>${x}</option>`).join('')}</select><label class="caption" for="front">DEFENSIVE FRONT</label><select id="front"><option>4–3 Even</option><option>3–4 Odd</option><option>Nickel Wide</option></select><p class="section-note">Coverage controls the secondary. Front controls the alignment of the four base rushers.</p></section>
+<section class="panel-section"><div class="section-title"><h2>TRAINING AIDS</h2><span class="step">03 / REP</span></div><label class="caption" for="camera-view">CAMERA</label><select id="camera-view"><option>Wide QB</option><option>Helmet POV</option></select><label class="toggle">Show receiver routes<input id="show-routes" type="checkbox" checked></label><label class="toggle">Show coverage zones<input id="show-zones" type="checkbox"></label><label class="toggle">Slow motion · 65% speed<input id="slow" type="checkbox"></label></section></aside>
+<section class="right"><div class="panel"><div class="field-top"><span class="status" id="status"><i class="dot"></i>PRE-SNAP</span><span class="view-name">QB CAM / WIDE FIELD VIEW</span></div><div id="viewport"><div class="field-badge"><b>1ST & 10</b> OWN 30</div><div id="clock">0.0s</div><div id="labels"></div><div class="field-bottom"><span id="field-hint">Scan the coverage. Press SPACE when you’re ready.</span></div><div id="result" role="status" aria-live="polite"><div class="result-card"><h2 id="result-title"></h2><p id="result-detail"></p><small>Press R or Reset play for another rep</small></div></div></div><div class="controls"><button class="primary" id="snap">▶ &nbsp; SNAP BALL</button><button class="secondary" id="reset">↻ &nbsp; RESET PLAY</button><div class="mobile-keys"><button aria-label="Move left" data-move="a">◀</button><button aria-label="Move back" data-move="s">▼</button><button aria-label="Move right" data-move="d">▶</button></div><div class="controls-help"><kbd>SPACE</kbd> snap &nbsp; <kbd>1–5</kbd> throw &nbsp; <kbd>W A S D</kbd> move<br><kbd>R</kbd> reset &nbsp; or click a receiver to throw</div></div></div>
+<div class="panel insight"><div class="insight-icon">◎</div><div><h3 id="read-title">THE PRE-SNAP READ</h3><p id="read-tip"></p></div></div><div class="bottom-line"><div class="legend"><span><i style="background:#d6f56c"></i>Offense</span><span><i style="background:#ed775b"></i>Defense</span><span><i style="background:#e3ce70"></i>First down</span></div><span>SIMPLIFIED COVERAGE MODEL · DEVELOPMENT BUILD</span></div></section></div><footer>POCKET LAB &nbsp; / &nbsp; An independent quarterback training prototype. Not affiliated with the NFL or EA Sports.</footer></main>`;
+
+const $=id=>document.getElementById(id);
+['Go','Slant','Out','Post','Flat'].forEach((r,i)=>$(`route-${i}`).value=r);
+const viewport=$('viewport');
+const scene=new THREE.Scene();scene.background=new THREE.Color('#91afb9');scene.fog=new THREE.Fog('#91afb9',90,235);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;viewport.prepend(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(76,1,.1,350);
+scene.add(new THREE.HemisphereLight('#d8eeff','#33462a',2.4));
+const sun=new THREE.DirectionalLight('#fff0d5',3.1);sun.position.set(-35,65,-30);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-48,right:48,top:70,bottom:-40,near:1,far:180});sun.shadow.bias=-.0004;scene.add(sun);
+const mat=(color,roughness=.8)=>new THREE.MeshStandardMaterial({color,roughness});
+const turf=[mat('#326644'),mat('#39704b')],white=mat('#e6ead9'),dark=mat('#1c2b2d');
+function mesh(geometry,material,x,y,z,parent=scene){const m=new THREE.Mesh(geometry,material);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
+function box(w,h,d,m,x,y,z,parent=scene){return mesh(new THREE.BoxGeometry(w,h,d),m,x,y,z,parent);}
+for(let i=0;i<24;i++)box(53.3,.1,5,turf[i%2],0,-.07,-40+i*5);
+box(70,.12,130,mat('#345a3e'),0,-.16,17.5);
+for(let z=-30;z<=70;z+=5){box(53.3,.015,.12,white,0,.01,z);for(const x of [-8.9,8.9]){for(let j=1;j<5;j++)box(.55,.02,.09,white,x,.02,z+j);}}
+for(const x of [-26.65,26.65])box(.2,.025,120,white,x,.02,20);
+box(53.3,.018,.16,mat('#d9c76b'),0,.035,10);box(53.3,.018,.12,mat('#64b3dc'),0,.035,0);
+function textTexture(text,color='#edf0df',size=110){const c=document.createElement('canvas');c.width=512;c.height=256;const ctx=c.getContext('2d');ctx.font=`800 ${size}px Arial`;ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,256,128);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;}
+for(let z=-20;z<=60;z+=10){const num=50-Math.abs(20-z);for(const x of [-20,20]){const m=mesh(new THREE.PlaneGeometry(4.8,2.4),new THREE.MeshBasicMaterial({map:textTexture(String(num)),transparent:true,depthWrite:false}),x,.04,z);m.rotation.x=-Math.PI/2;m.rotation.z=x<0?Math.PI/2:-Math.PI/2;}}
+for(const z of [-35,75]){box(53.3,.02,9,mat('#203d35'),0,.01,z);const m=mesh(new THREE.PlaneGeometry(30,6),new THREE.MeshBasicMaterial({map:textTexture('POCKET LAB','#d6f56c',65),transparent:true}),0,.04,z);m.rotation.x=-Math.PI/2;}
+// Original stadium geometry: tiered seating, concourse, perimeter boards and light banks.
+const seatMaterials=['#314750','#405b61','#536b6c','#3c535b'].map(c=>mat(c));
+for(const side of [-1,1]){box(2,2.3,133,dark,side*32,1,20);for(let row=0;row<13;row++){box(1.8,.5,135,seatMaterials[row%4],side*(35+row*1.4),2+row*.7,20);}box(23,1,140,mat('#25373d'),side*44,13,20);}
+const seats=new THREE.InstancedMesh(new THREE.BoxGeometry(.65,.65,.65),seatMaterials[1],1066);let seatIndex=0;const seatMatrix=new THREE.Matrix4();for(const side of [-1,1])for(let row=0;row<13;row++)for(let z=-44;z<85;z+=3.2){seatMatrix.makeTranslation(side*(35+row*1.4),2.5+row*.7,z);seats.setMatrixAt(seatIndex++,seatMatrix);}seats.count=seatIndex;scene.add(seats);
+for(const z of [-45,85]){box(112,5,3,dark,0,2,z);for(let row=0;row<9;row++)box(110,.65,1.7,seatMaterials[row%4],0,5+row*.7,z+(z<0?-1:1)*row*1.5);}
+for(const x of [-33,33])for(const z of [-32,68]){box(.35,28,.35,dark,x,14,z);box(7,2,.6,mat('#e2e3d9'),x,28,z);}
+const board=mesh(new THREE.PlaneGeometry(18,5),new THREE.MeshBasicMaterial({map:textTexture('POCKET LAB','#d6f56c',63)}),0,14,83);board.rotation.y=Math.PI;
+const goal=mat('#e0bd54');for(const z of [-39,79]){box(.18,3,.18,goal,0,1.5,z);box(6,.15,.15,goal,0,3,z);for(const x of [-3,3])box(.12,5,.12,goal,x,5.5,z);}
+
+const offense=mat('#d6edb3'),defense=mat('#d8664d'),pants=mat('#e9e7d6'),skin=mat('#875d45'),helmetOff=mat('#e7f6d5',.3),helmetDef=mat('#29373c',.3);
+function makePlayer(isOff,number){const g=new THREE.Group();scene.add(g);const jersey=isOff?offense:defense;
+  const torso=mesh(new THREE.CapsuleGeometry(.28,.48,4,8),jersey,0,1.12,0,g);torso.scale.x=1.3;
+  const head=mesh(new THREE.SphereGeometry(.24,12,10),isOff?helmetOff:helmetDef,0,1.78,0,g);head.scale.z=1.1;
+  box(.34,.13,.12,dark,0,1.7,.21,g);box(.35,.025,.12,white,0,1.64,.26,g);
+  const limbs=[];for(const side of [-1,1]){const arm=mesh(new THREE.CapsuleGeometry(.105,.4,3,6),skin,side*.4,1.02,0,g);limbs.push(arm);const leg=mesh(new THREE.CapsuleGeometry(.135,.46,3,6),pants,side*.18,.44,0,g);limbs.push(leg);box(.2,.12,.34,dark,side*.18,.08,.08,g);}
+  const numberMesh=mesh(new THREE.PlaneGeometry(.35,.35),new THREE.MeshBasicMaterial({map:textTexture(String(number),'#1a302a',150),transparent:true}),0,1.2,-.298,g);numberMesh.rotation.y=Math.PI;
+  g.userData.limbs=limbs;return g;
+}
+function place(g,p,time=0,moving=false){const prev=g.position.clone();g.position.set(p[0],0,p[1]);if(moving){g.rotation.y=Math.atan2(p[0]-prev.x,p[1]-prev.z);g.position.y=Math.abs(Math.sin(time*12))*.04;}g.userData.limbs.forEach((l,i)=>l.rotation.x=moving?Math.sin(time*11+(i%2)*Math.PI)*.5:0);}
+const receivers=labels.map((_,i)=>({model:makePlayer(true,11+i),p:[0,0],path:[]}));
+const defenders=Array.from({length:11},(_,i)=>({model:makePlayer(false,21+i),p:[0,0],assignment:null}));
+const blockers=Array.from({length:5},(_,i)=>makePlayer(true,60+i));
+const qb=makePlayer(true,7);
+const ball=mesh(new THREE.SphereGeometry(.14,12,8),mat('#6c3920',.65),0,1,-5);ball.scale.set(.8,.8,1.5);
+const routeGroup=new THREE.Group();scene.add(routeGroup);const zoneGroup=new THREE.Group();scene.add(zoneGroup);
+const targetButtons=labels.map((l,i)=>{const b=document.createElement('button');b.className='player-label';b.textContent=`${i+1} · ${l}`;b.style.width='38px';b.style.borderRadius='5px';b.setAttribute('aria-label',`Throw to ${l}`);b.addEventListener('click',()=>throwBall(i));$('labels').append(b);return b;});
+let phase='ready',elapsed=0,qpos=[0,-5],passes=0,completions=0,reps=0,flight=null,coverage='',keys=new Set(),sacked=false;
+function clearGroup(group){for(const child of [...group.children]){child.geometry.dispose();child.material.dispose();group.remove(child);}}
+function reset(){phase='ready';elapsed=0;flight=null;sacked=false;qpos=[0,-5];coverage=$('coverage').value;const starts=formations[$('formation').value];clearGroup(routeGroup);clearGroup(zoneGroup);
+ receivers.forEach((r,i)=>{r.p=[...starts[i]];r.path=routePoints(starts[i],$(`route-${i}`).value);place(r.model,r.p);r.model.rotation.y=0;const geom=new THREE.BufferGeometry().setFromPoints(r.path.map(p=>new THREE.Vector3(p[0],.08,p[1])));routeGroup.add(new THREE.Line(geom,new THREE.LineDashedMaterial({color:0xd6f56c,dashSize:.65,gapSize:.4,transparent:true,opacity:.65})));routeGroup.children.at(-1).computeLineDistances();});
+ const align=$('front').value==='3–4 Odd'?[-5,-2,2,7]:$('front').value==='Nickel Wide'?[-8,-3,3,8]:[-5,-1.8,1.8,5];
+ const assignments=[...align.map(x=>({role:'rush',x,z:1})),...coverageAssignments(coverage,starts)];
+ defenders.forEach((d,i)=>{d.assignment=assignments[i];d.p=[d.assignment.x,d.assignment.z];place(d.model,d.p);d.model.rotation.y=Math.PI;if(['deep','zone'].includes(d.assignment.role)){const m=mesh(new THREE.CircleGeometry(d.assignment.role==='deep'?8:5,40),new THREE.MeshBasicMaterial({color:d.assignment.role==='deep'?0x7ccde0:0xf39b75,transparent:true,opacity:.12,depthWrite:false,side:THREE.DoubleSide}),d.p[0],.06,d.p[1],zoneGroup);m.rotation.x=-Math.PI/2;}});
+ blockers.forEach((b,i)=>place(b,[(i-2)*1.7,-.6]));place(qb,qpos);ball.visible=true;ball.position.set(0,1.1,-4.7);$('result').classList.remove('visible');$('snap').disabled=false;$('status').innerHTML='<i class="dot"></i>PRE-SNAP';$('field-hint').textContent='Scan the coverage. Press SPACE when you’re ready.';$('read-tip').textContent=coverages[coverage].tip;$('read-title').textContent='THE PRE-SNAP READ';document.querySelectorAll('select').forEach(s=>s.disabled=false);targetButtons.forEach(b=>b.disabled=true);syncAids();}
+function syncAids(){routeGroup.visible=$('show-routes').checked;zoneGroup.visible=$('show-zones').checked;}
+function snap(){if(phase!=='ready')return;phase='live';reps++;$('reps').textContent=String(reps).padStart(2,'0');$('snap').disabled=true;document.querySelectorAll('select').forEach(s=>s.disabled=true);targetButtons.forEach(b=>b.disabled=false);$('status').innerHTML='<i class="dot"></i>PLAY LIVE';$('field-hint').textContent='Read your receivers · 1–5 or click a target to throw';}
+function finish(title,detail,complete=false){phase='done';if(complete)completions++;$('completion').textContent=passes?`${Math.round(completions/passes*100)}%`:'—';$('result-title').textContent=title;$('result-detail').textContent=detail;$('result').classList.add('visible');$('status').textContent='REP COMPLETE';$('field-hint').textContent='Reset to run it again or change the play.';targetButtons.forEach(b=>b.disabled=true);$('read-title').textContent='REP REVIEW';$('read-tip').textContent=detail;}
+function throwBall(i){if(phase!=='live')return;passes++;const r=receivers[i];const duration=Math.max(.45,Math.min(1.7,Math.hypot(r.p[0]-qpos[0],r.p[1]-qpos[1])/24));const end=pointOnRoute(r.path,(elapsed+duration)*5.8);flight={i,start:[...qpos],end,duration,t:0};phase='flight';targetButtons.forEach(b=>b.disabled=true);$('status').textContent='BALL IN FLIGHT';}
+function update(dt){if(phase!=='live'&&phase!=='flight')return;elapsed+=dt;const moving=phase==='live'&&(keys.has('a')||keys.has('d')||keys.has('w')||keys.has('s'));
+ if(phase==='live'){qpos[0]=THREE.MathUtils.clamp(qpos[0]+((keys.has('a')?1:0)-(keys.has('d')?1:0))*4*dt,-24,24);qpos[1]=THREE.MathUtils.clamp(qpos[1]+((keys.has('w')?1:0)-(keys.has('s')?1:0))*4*dt,-15,-1);}
+ place(qb,qpos,elapsed,moving);
+ receivers.forEach(r=>{const next=pointOnRoute(r.path,elapsed*5.8);const m=Math.hypot(next[0]-r.p[0],next[1]-r.p[1])>.001;r.p=next;place(r.model,r.p,elapsed,m);});
+ defenders.forEach((d,i)=>{const a=d.assignment;let target=[a.x,a.z],speed=4.8;
+  if(a.role==='rush'){const release=coverage==='Cover 0 Blitz'?1.7:3.2+(i%3)*.35;target=elapsed<release?[a.x*.82,-.5]:qpos;speed=elapsed<release?1.1:4.4;}
+  else if(a.role==='man'){const r=receivers[a.target];target=pointOnRoute(r.path,Math.max(0,elapsed-.34)*5.8);speed=5.5;}
+  else if(a.role==='spy'){target=[qpos[0]*.8,Math.max(2,qpos[1]+7)];speed=4;}
+  else {const nearest=receivers.reduce((best,r)=>Math.hypot(r.p[0]-a.x,r.p[1]-a.z)<Math.hypot(best.p[0]-a.x,best.p[1]-a.z)?r:best,receivers[0]);const inZone=Math.abs(nearest.p[0]-a.x)<(a.role==='deep'?10:8)&&Math.abs(nearest.p[1]-a.z)<(a.role==='deep'?18:8);if(inZone)target=[nearest.p[0],nearest.p[1]+(a.role==='deep'?2:0)];if(flight&&Math.hypot(flight.end[0]-a.x,flight.end[1]-a.z)<15)target=flight.end;speed=4.7;}
+  d.p=moveToward(d.p,target,speed*dt);place(d.model,d.p,elapsed,true);
+  if(phase==='live'&&Math.hypot(d.p[0]-qpos[0],d.p[1]-qpos[1])<.8){sacked=true;finish('Sacked',`The rush reached you after ${elapsed.toFixed(1)} seconds. Find your quick answer or move away from pressure.`);}
+ });
+ blockers.forEach((b,i)=>{b.position.z=-.6-Math.min(1.3,elapsed*.22);b.rotation.y=Math.sin(elapsed*2+i)*.12;});
+ if(phase==='live')ball.position.set(qpos[0]+.3,1.25,qpos[1]);
+ if(phase==='flight'){flight.t+=dt;const t=Math.min(1,flight.t/flight.duration);ball.position.set(THREE.MathUtils.lerp(flight.start[0],flight.end[0],t),1.5+Math.sin(t*Math.PI)*Math.min(7,flight.duration*4),THREE.MathUtils.lerp(flight.start[1],flight.end[1],t));ball.rotation.x+=dt*14;
+  if(t>.55&&ball.position.y<2.5&&defenders.some(d=>Math.hypot(d.p[0]-ball.position.x,d.p[1]-ball.position.z)<.75)){finish('Intercepted','A defender broke on the ball. Look for clear throwing lanes and release before the coverage closes.');}
+  else if(t===1){const nearest=Math.min(...defenders.map(d=>Math.hypot(d.p[0]-flight.end[0],d.p[1]-flight.end[1])));const yards=Math.max(0,Math.round(flight.end[1]));if(nearest<1.35)finish('Pass broken up',`${labels[flight.i]} was covered at the catch point. Try a different route combination or throw earlier.`);else finish('Complete',`${labels[flight.i]} caught the pass for ${yards} yards${yards>=10?' — first down':''}. Released in ${(elapsed-flight.duration).toFixed(1)}s with ${nearest.toFixed(1)} yards of separation.`,true);}
+ }
+ if(phase==='live'&&elapsed>12)finish('Rep ended','The play reached the 12-second practice limit. Reset and work on making an earlier decision.');
+}
+$('snap').onclick=snap;$('reset').onclick=reset;document.querySelectorAll('select').forEach(s=>s.addEventListener('change',reset));$('show-routes').onchange=syncAids;$('show-zones').onchange=syncAids;
+window.addEventListener('keydown',e=>{if(['SELECT','INPUT'].includes(document.activeElement?.tagName)&&e.code!=='Escape')return;const k=e.key.toLowerCase();if([' ','w','a','s','d','r','1','2','3','4','5'].includes(k))e.preventDefault();keys.add(k);if(e.repeat)return;if(e.code==='Space')snap();if(k==='r')reset();if(/^[1-5]$/.test(k))throwBall(Number(k)-1);});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear());document.querySelectorAll('[data-move]').forEach(b=>{b.addEventListener('pointerdown',e=>{b.setPointerCapture(e.pointerId);keys.add(b.dataset.move);});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>keys.delete(b.dataset.move));});
+function resize(){const w=viewport.clientWidth,h=viewport.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}new ResizeObserver(resize).observe(viewport);reset();resize();let previous=performance.now();
+function frame(now){requestAnimationFrame(frame);const dt=Math.min(.5,(now-previous)/1000)*($('slow').checked?.65:1);previous=now;for(let remaining=dt;remaining>0;remaining-=.02)update(Math.min(.02,remaining));const helmet=$('camera-view').value==='Helmet POV';qb.visible=!helmet;camera.fov=helmet?105:76;camera.updateProjectionMatrix();document.querySelector('.view-name').textContent=helmet?'QB CAM / HELMET POV':'QB CAM / WIDE FIELD VIEW';camera.position.set(helmet?qpos[0]:qpos[0]*.42,helmet?1.85:6.2,helmet?qpos[1]+.35:qpos[1]-Math.max(12,30/camera.aspect));camera.lookAt(helmet?qpos[0]:qpos[0]*.15,1.6,15);$('clock').textContent=`${elapsed.toFixed(1)}s`;receivers.forEach((r,i)=>{const v=new THREE.Vector3(r.p[0],2.7,r.p[1]).project(camera);targetButtons[i].style.left=`${(v.x*.5+.5)*viewport.clientWidth}px`;targetButtons[i].style.top=`${(-v.y*.5+.5)*viewport.clientHeight}px`;targetButtons[i].style.display=v.z<1&&Math.abs(v.x)<1&&Math.abs(v.y)<1?'block':'none';});renderer.render(scene,camera);}requestAnimationFrame(frame);
+// Read-only state for smoke tests and future training telemetry.
+window.pocketLab={getState:()=>({phase,elapsed,reps,passes,completions,coverage,formation:$('formation').value,receivers:receivers.map(r=>({position:[...r.p],path:r.path.map(p=>[...p])})),quarterback:[...qpos],defenderCount:defenders.length,sacked})};
