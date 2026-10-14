@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createFootball } from './football-ball.js';
 
 export function createViewHands(camera) {
   const group = new THREE.Group();
@@ -21,8 +22,8 @@ export function createViewHands(camera) {
     arm.rotation.z = side * -.30;
     return arm;
   });
-  const football = new THREE.Mesh(new THREE.SphereGeometry(.095, 16, 10), new THREE.MeshStandardMaterial({ color: '#6e3922', roughness: .8 }));
-  football.scale.set(1, 1, 1.65);football.position.set(.12, -.29, -.68);football.rotation.z = -.25;
+  const football = createFootball();
+  football.scale.setScalar(.85);football.position.set(.12, -.29, -.68);football.rotation.z = -.25;
   group.add(football);
   return {
     update({ visible, phase, time, moving, throwProgress }) {

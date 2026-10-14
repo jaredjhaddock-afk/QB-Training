@@ -9,6 +9,7 @@ import { setupFirstPerson, movementDirection } from './first-person.js';
 import { createViewHands } from './view-hands.js';
 import { athlete, steer, runRoute, predictReceiver, receiverFacing, coverageDecision } from './simulation.js';
 import { defensiveFronts, defensiveAlignment } from './defense.js';
+import { createFootball, orientSpiral } from './football-ball.js';
 import { cameraPose } from './camera.js';
 import { setupMobile } from './mobile.js';
 import { loadReceiverNames, setupReceiverNames } from './receiver-names.js';
@@ -79,7 +80,7 @@ const defenders=Array.from({length:11},(_,i)=>({model:makePlayer(false,21+i,i<4?
 const blockers=Array.from({length:5},(_,i)=>makePlayer(true,60+i,'blocker'));
 const qb=makePlayer(true,7,'quarterback');
 const qbRing=mesh(new THREE.RingGeometry(.64,.76,48),new THREE.MeshBasicMaterial({color:0x7bffcb,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false}),0,.045,-5);qbRing.rotation.x=-Math.PI/2;
-const ball=mesh(new THREE.SphereGeometry(.14,12,8),mat('#6c3920',.65),0,1,-5);ball.scale.set(.8,.8,1.5);
+const ball=createFootball();scene.add(ball);
 const routeGroup=new THREE.Group();scene.add(routeGroup);const zoneGroup=new THREE.Group();scene.add(zoneGroup);
 const targetButtons=labels.map((l,i)=>{const b=document.createElement('button');b.className='player-label';b.textContent=`${i+1} · ${l}`;b.style.width='52px';b.style.borderRadius='5px';b.setAttribute('aria-label',`Throw to ${l}`);b.addEventListener('click',()=>throwBall(i));$('labels').append(b);return b;});
 let sceneRevision=0,lastRenderState='';
@@ -89,7 +90,7 @@ function reset(){sceneRevision++;keys.clear();input.reset();phase='ready';elapse
  receivers.forEach((r,i)=>{r.motion=athlete(starts[i]);r.p=r.motion.p;r.route=$(`route-${i}`).value;r.path=routePoints(starts[i],r.route);place(r.model,r.p);r.model.rotation.y=0;const geom=new THREE.BufferGeometry().setFromPoints(r.path.map(p=>new THREE.Vector3(p[0],.08,p[1])));routeGroup.add(new THREE.Line(geom,new THREE.LineDashedMaterial({color:0xd6f56c,dashSize:.65,gapSize:.4,transparent:true,opacity:.65})));routeGroup.children.at(-1).computeLineDistances();});
  const assignments=defensiveAlignment($('front').value,coverage,starts);
  defenders.forEach((d,i)=>{d.assignment=assignments[i];d.model.userData.role=d.assignment.position==='DL'?'rusher':'defender';d.motion=athlete([d.assignment.alignX,d.assignment.alignZ]);d.p=d.motion.p;d.decision=null;place(d.model,d.p);d.model.rotation.y=Math.PI;if(['deep','zone'].includes(d.assignment.role)){const m=mesh(new THREE.CircleGeometry(d.assignment.role==='deep'?8:5,40),new THREE.MeshBasicMaterial({color:d.assignment.role==='deep'?0x7ccde0:0xf39b75,transparent:true,opacity:.12,depthWrite:false,side:THREE.DoubleSide}),d.assignment.x,.06,d.assignment.z,zoneGroup);m.rotation.x=-Math.PI/2;}});
- blockers.forEach((b,i)=>place(b,[(i-2)*1.7,-.6]));place(qb,qpos);ball.visible=true;ball.position.set(.15,1.35,-4.75);$('result').classList.remove('visible');$('snap').disabled=false;$('status').innerHTML='<i class="dot"></i>PRE-SNAP';$('field-hint').textContent='Scan the coverage. Snap the ball when you’re ready.';$('read-tip').textContent=coverages[coverage].tip;$('read-title').textContent='THE PRE-SNAP READ';document.querySelectorAll('select').forEach(s=>s.disabled=false);targetButtons.forEach(b=>b.disabled=true);syncAids();mobile.sync(phase);nameEditor.setLocked(false);}
+ blockers.forEach((b,i)=>place(b,[(i-2)*1.7,-.6]));place(qb,qpos);ball.visible=true;ball.quaternion.identity();ball.position.set(.15,1.35,-4.75);$('result').classList.remove('visible');$('snap').disabled=false;$('status').innerHTML='<i class="dot"></i>PRE-SNAP';$('field-hint').textContent='Scan the coverage. Snap the ball when you’re ready.';$('read-tip').textContent=coverages[coverage].tip;$('read-title').textContent='THE PRE-SNAP READ';document.querySelectorAll('select').forEach(s=>s.disabled=false);targetButtons.forEach(b=>b.disabled=true);syncAids();mobile.sync(phase);nameEditor.setLocked(false);}
 function syncAids(){routeGroup.visible=$('show-routes').checked;zoneGroup.visible=$('show-zones').checked;$('routes-toggle').setAttribute('aria-pressed',String(routeGroup.visible));$('routes-toggle').textContent=`Routes: ${routeGroup.visible?'on':'off'}`;}
 function changeCamera(){
  input.clear();keys.clear();if(document.pointerLockElement)document.exitPointerLock();
@@ -121,7 +122,7 @@ function update(dt){if(mobile.isPaused()||(phase!=='live'&&phase!=='flight'))ret
  });
  blockers.forEach(b=>{place(b,[b.position.x,-.6-Math.min(1.3,elapsed*.22)],elapsed,true,0);});
  if(phase==='live')ball.position.set(qpos[0]+.15,1.35,qpos[1]+.25);
- if(phase==='flight'){flight.t+=dt;const t=Math.min(1,flight.t/flight.duration);ball.position.set(THREE.MathUtils.lerp(flight.start[0],flight.end[0],t),1.5+Math.sin(t*Math.PI)*Math.min(7,flight.duration*4),THREE.MathUtils.lerp(flight.start[1],flight.end[1],t));ball.rotation.x+=dt*14;
+ if(phase==='flight'){flight.t+=dt;const t=Math.min(1,flight.t/flight.duration);ball.position.set(THREE.MathUtils.lerp(flight.start[0],flight.end[0],t),1.5+Math.sin(t*Math.PI)*Math.min(7,flight.duration*4),THREE.MathUtils.lerp(flight.start[1],flight.end[1],t));orientSpiral(ball,flight);
   if(t>.55&&ball.position.y<2.5&&defenders.some(d=>Math.hypot(d.p[0]-ball.position.x,d.p[1]-ball.position.z)<.75)){finish('Intercepted','A defender broke on the ball. Look for clear throwing lanes and release before the coverage closes.');}
   else if(t===1){const nearest=Math.min(...defenders.map(d=>Math.hypot(d.p[0]-flight.end[0],d.p[1]-flight.end[1])));const yards=Math.max(0,Math.round(flight.end[1]));if(nearest<1.35)finish('Pass broken up',`${labels[flight.i]} was covered at the catch point. Try a different route combination or throw earlier.`);else finish('Complete',`${labels[flight.i]} caught the pass for ${yards} yards${yards>=10?' — first down':''}. Released in ${(elapsed-flight.duration).toFixed(1)}s with ${nearest.toFixed(1)} yards of separation.`,true);}
  }
