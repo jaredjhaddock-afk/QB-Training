@@ -13,7 +13,7 @@ try {
   assert.ok(initial.visuals.crowd > 1500);
   await page.screenshot({ path: '/workspace/pocket-lab-visual-upgrade.png' });
   await page.locator('#snap').tap();
-  await page.locator('[data-receiver="R"]').tap();
+  await page.locator('[data-receiver="H"]').tap();
   await page.waitForFunction(() => window.pocketLab.getState().quarterbackPose.throwProgress !== null);
   await page.waitForFunction(() => window.pocketLab.getState().phase === 'done', {}, { timeout: 60000 });
   await page.locator('#reset').tap();

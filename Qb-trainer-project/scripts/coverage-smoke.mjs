@@ -19,7 +19,7 @@ try{
   if(coverage==='Cover 3 Spy')assert.ok(state.defenders.some(d=>d.decision==='spy'));
   if(coverage==='Cover 2 Man')assert.equal(state.defenders.filter(d=>d.decision==='trail').length,5);
   if(coverage==='Cover 2 Zone')assert.ok(state.defenders.some(d=>['carry-zone','drive-under','recover-zone','midpoint'].includes(d.decision)));
-  await page.locator('[data-receiver="R"]').tap();
+  await page.locator('[data-receiver="H"]').tap();
   await page.waitForFunction(()=>window.pocketLab.getState().phase==='done');
   await page.locator('#reset').tap();
   console.log(`${coverage}: live decisions, bounded movement, pass and reset verified`);

@@ -104,7 +104,7 @@ try {
   assert.equal(await page.locator('[data-receiver="RB"]').textContent(), 'RB');
   await page.locator('#playbook-open').tap();
   await page.locator('#reset-names').tap();
-  assert.deepEqual((await state()).receiverNames, ['X', 'H', 'Y', 'Z', 'R']);
+  assert.deepEqual((await state()).receiverNames, ['X', 'F', 'Y', 'Z', 'H']);
   await page.locator('#playbook-close').tap();
   assert.deepEqual(errors, []);
   console.log('PASS: landscape viewport, five named receiver touch passes, editable/persistent/resettable designations, playbook, portrait pause/resume, fullscreen fallback, and small-phone layout.');

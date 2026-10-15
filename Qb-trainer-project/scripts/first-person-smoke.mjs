@@ -60,7 +60,7 @@ try {
     return state.quarterback[0] < -.02 && state.look.yaw > .1 && state.stick.strafe > .4;
   });
   // A third finger can pass while movement and looking remain held.
-  const target = await mobile.locator('[data-receiver="R"]').boundingBox();
+  const target = await mobile.locator('[data-receiver="H"]').boundingBox();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [moveFinger, lookFinger, touch(target.x + target.width / 2, target.y + target.height / 2, 3)] });
   assert.equal((await mobile.evaluate(() => window.pocketLab.getState())).passes, 1);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });

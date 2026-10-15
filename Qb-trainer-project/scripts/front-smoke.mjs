@@ -13,7 +13,7 @@ try{
   if(front==='4–4')await page.screenshot({path:'/workspace/pocket-lab-44-alignment.png'});
   await page.locator('#snap').tap();await page.waitForFunction(()=>window.pocketLab.getState().elapsed>.5);
   const live=await page.evaluate(()=>window.pocketLab.getState());assert.ok(live.defenders.every(d=>d.position.every(Number.isFinite)));assert.ok(live.defenders.some(d=>Math.hypot(d.position[0]-d.alignment[0],d.position[1]-d.alignment[1])>.1));
-  await page.locator('[data-receiver="R"]').tap();await page.waitForFunction(()=>window.pocketLab.getState().phase==='done');await page.locator('#reset').tap();
+  await page.locator('[data-receiver="H"]').tap();await page.waitForFunction(()=>window.pocketLab.getState().phase==='done');await page.locator('#reset').tap();
   assert.equal((await page.evaluate(()=>window.pocketLab.getState())).front,front);
   console.log(`PASS ${front}: personnel, pre-snap depth, coverage movement, pass, and reset.`);
  }

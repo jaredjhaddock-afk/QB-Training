@@ -5,7 +5,7 @@ export const formations = {
   'Trips RT': [[22,0],[-7,-1],[-14,-1],[-22,0],[4,-5]],
   'Singleback': [[22,0],[10,-1],[-7,0],[-22,-1],[0,-8]],
 };
-export const labels = ['X','H','Y','Z','R'];
+export const labels = ['X','F','Y','Z','H'];
 export const routes = ['Go','Slant (3 yd)','Slant (1 yd)','Out (5 yd)','Out (10 yd)','Spot','In','Curl','Corner','Post','Flat','Drag','Wheel'];
 export const coverages = {
   'Cover 1': {type:'man', deep:1, spy:false, tip:'One deep safety. Watch the leverage of the man defenders; crossers and out-breaking routes can create separation.'},

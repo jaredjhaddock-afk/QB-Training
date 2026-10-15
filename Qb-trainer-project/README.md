@@ -15,7 +15,7 @@ npm run dev -- --port 5173
 Choose a formation, assign each receiver a hot route, then choose coverage and a defensive front. Coverages and fronts are separate football concepts. Coverage options include Cover 0 blitz, Cover 1, Cover 2 man/zone, Cover 3, Cover 3 spy, and Cover 4.
 
 - **Space** or **Snap ball** starts a rep.
-- **1–5** or clicking a receiver throws to X, H, Y, Z, R respectively. Passes lead the selected route.
+- **1–5** or clicking a receiver throws to X, F, Y, Z, H respectively. Passes lead the selected route.
 - **WASD** moves relative to the direction you are looking, behind the line of scrimmage.
 - **Mouse** looks around independently: click the field to capture the mouse, and press **Esc** to release it. If mouse capture is unavailable, drag the field instead. Arrow keys can also look around.
 - **QB POV** is the default first-person camera; look left/right or up/down to scan the defense before and during a rep.
@@ -29,7 +29,7 @@ Choose a formation, assign each receiver a hot route, then choose coverage and a
 Hold your phone sideways. On touch devices, the game fills the landscape viewport;
 the page header and setup sidebar are replaced by an in-game **Playbook** panel.
 Choose formations, routes, and coverage between reps, then tap **Back to field**.
-Tap **Snap ball**, then tap the fixed **X / H / Y / Z / R** button for the receiver
+Tap **Snap ball**, then tap the fixed **X / F / Y / Z / H** button for the receiver
 you want to pass to. These buttons stay in place even when receivers move offscreen.
 Drag the **left-thumb joystick** to move. Drag the **right side of the field** to
 look around independently. Movement follows your viewing direction. These gestures
@@ -49,7 +49,7 @@ Edit the name beside any route in the playbook to use your team's terminology,
 such as X, Z, Y, F, H, B, or RB. Use a unique designation of 1–3 letters or numbers
 per receiver. Names update the field markers, touch passing buttons, route labels,
 and rep results. The receiver's route and keyboard number stay the same. Names
-persist on this browser/device; **Reset names** restores X, H, Y, Z, R. Editing is
+persist on this browser/device; **Reset names** restores X, F, Y, Z, H. Editing is
 locked after the snap until the play is reset. If device storage is unavailable,
 names still work for the current session.
 
