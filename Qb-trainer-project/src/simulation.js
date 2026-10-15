@@ -61,10 +61,12 @@ export function coverageDecision(assignment, position, observed, qb, coverage, e
 
   // Break only after a visible release and a human reaction interval. Man
   // defenders must be near their assignment; zones must be near the landing lane.
-  if (flight && flight.t >= .24 + index % 3 * .035 && a.role !== 'rush') {
+  if (flight && flight.t >= (memory.profile?.reaction??(.24 + index % 3 * .035)) && a.role !== 'rush') {
     const close = distance(position, flight.end) < 12;
     const canSee = a.role !== 'man' || distance(position, observed[a.target].p) < 3;
-    if (close && canSee) { target = [...flight.end];state = 'break-on-ball';speed = 5.9; }
+    const inLane = !['zone','deep'].includes(a.role) || (flight.end[0]>=a.minX-1 && flight.end[0]<=a.maxX+1);
+    // Do not pull every nearby zone out of its responsibility on release.
+    if (close && canSee && inLane) { target = [...flight.end];state = 'break-on-ball';speed = 5.9; }
   }
   return { target, speed, state, threat, conflict, acceleration };
 }

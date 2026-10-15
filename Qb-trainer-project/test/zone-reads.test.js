@@ -64,3 +64,49 @@ test('a new rep discards prior commitments even when reusing a memory object',()
  const fresh=decide(zone,[0,10],receivers([[0,12]]),0,memory);
  assert.equal(fresh.threat,0);
 });
+
+test('rep tendencies vary genuine conflicts, stay reproducible, and preserve clear deep danger',async()=>{
+ const {coverageProfile}=await import('../src/zone-reads.js');
+ const choices=new Set();
+ for(let seed=1;seed<=60;seed++){
+  const profile=coverageProfile(seed,2);
+  assert.deepEqual(profile,coverageProfile(seed,2));
+  const memory={profile},r=receivers([[-5,8],[5,8]]);
+  for(let t=0;t<=1;t+=.02)decide(zone,[0,10],r,t,memory);
+  choices.add(memory.choice);
+  const deep={role:'deep',x:0,z:18,minX:-26,maxX:26};
+  assert.equal(decide(deep,[0,18],receivers([[0,10],[4,26]]),1,{profile}).threat,1);
+ }
+ assert.deepEqual([...choices].sort(),[0,1],'repeat reps must allow either comparable route to win');
+});
+
+test('hook and flat defenders protect their depth against shallow checkdowns',()=>{
+ for(const a of [zone,{role:'zone',x:16,z:6,minX:8,maxX:26}]){
+  const body=athlete([a.x,a.z]),memory={},r=receivers([[a.x,1]]);
+  for(let frame=0;frame<180;frame++){
+   const d=decide(a,body.p,r,frame/60,memory);
+   steer(body,d.target,1/60,d.speed,d.acceleration);
+   assert.ok(body.p[1]>=(a.z===10?6.8:3.3),'do not vacate the intermediate area to chase a checkdown');
+  }
+ }
+});
+
+test('adjacent zones hand a crossing receiver across their shared edge without double ownership',()=>{
+ const left={role:'zone',x:-6,z:10,minX:-12,maxX:0};
+ const right={role:'zone',x:6,z:10,minX:0,maxX:12};
+ const memories=[{},{}];
+ for(let step=0;step<=20;step++){
+  const r=[{p:[-5+step*.5,8],v:[2.5,0]}];
+  const decisions=[left,right].map((a,i)=>decide(a,[a.x,10],r,step*.3,memories[i]));
+  assert.equal(decisions.filter(d=>d.threat===0).length,1);
+  assert.equal(decisions[r[0].p[0]+.45<0?0:1].threat,0);
+ }
+});
+
+test('a pass in a neighboring lane does not pull a zone defender out of his area',()=>{
+ const a={role:'zone',x:-5,z:10,minX:-12,maxX:0};
+ const d=coverageDecision(a,[-1,10],receivers([[-5,8],[5,10]]),[0,-5],'Cover 3',2,{t:.5,end:[5,10]},0,{});
+ assert.notEqual(d.state,'break-on-ball');assert.ok(d.target[0]<0);
+ const own=coverageDecision(a,[-1,10],receivers([[-5,8]]),[0,-5],'Cover 3',2,{t:.5,end:[-5,8]},0,{});
+ assert.equal(own.state,'break-on-ball');
+});
