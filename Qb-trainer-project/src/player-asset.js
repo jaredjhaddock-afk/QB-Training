@@ -66,13 +66,21 @@ export function attachPlayerAsset(player, asset, offense) {
   const mixer = new THREE.AnimationMixer(model);
   const actions = Object.fromEntries(asset.clips.map(clip => [clip.name,mixer.clipAction(clip)]));
   actions.Catch.setLoop(THREE.LoopOnce,1);actions.Catch.clampWhenFinished = true;
-  player.userData.asset = { model, mixer, actions, current:null, lastTime:0 };
+  const poseBones = ['Spine02','LeftArm','RightArm','RightForeArm'].map(name => {
+    const bone = model.getObjectByName(name);
+    return { bone, animatedRotation:bone.quaternion.clone() };
+  });
+  player.userData.asset = { model, mixer, actions, poseBones, current:null, lastTime:0 };
   animateAsset(player,0,false);
 }
 
 export function animateAsset(player,time,moving,{throwProgress=null,catching=false,catchProgress=0,catchTime=null}={}) {
   const data = player.userData.asset;
-  const {model,mixer,actions} = data;
+  const {model,mixer,actions,poseBones} = data;
+  // AnimationMixer can skip writing unchanged tracks. Remove last frame's
+  // procedural offsets before sampling, otherwise constant Idle tracks allow
+  // rotateX() offsets to accumulate into full torso/arm revolutions.
+  for (const pose of poseBones) pose.bone.quaternion.copy(pose.animatedRotation);
   const speed = player.userData.locomotion?.speed ?? (moving ? 7/.9144 : 0);
   const lineman = ['blocker','rusher'].includes(player.userData.role);
   const name = catching ? 'Catch' : moving && speed > (lineman ? 2.2 : .6) ? 'Run' : 'Idle';
@@ -90,6 +98,7 @@ export function animateAsset(player,time,moving,{throwProgress=null,catching=fal
   // The source catches at about one second. Time the leap to ball arrival.
   if (catching) { actions.Catch.paused=true;actions.Catch.time=catchTime??(.1+.9*catchProgress); }
   mixer.update(dt);data.lastTime=time;
+  for (const pose of poseBones) pose.animatedRotation.copy(pose.bone.quaternion);
   // No blocking or throwing clips were supplied: add small upper-body poses.
   if (lineman && name === 'Idle') {
     model.getObjectByName('Spine02').rotateX(.25);
