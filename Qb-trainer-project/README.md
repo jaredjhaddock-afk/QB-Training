@@ -12,6 +12,8 @@ npm ci --cache /workspace/.npm-cache
 npm run dev -- --port 5173
 ```
 
+Deuce is the spread doubles formation. Deuce RT and Deuce LT attach Y beside the right or left tackle respectively, with the same-side wideout off the line to keep Y eligible.
+
 Choose a formation, assign each receiver a hot route, then choose coverage and a defensive front. Coverages and fronts are separate football concepts. Coverage options include Cover 0 blitz, Cover 1, Cover 2 man/zone, Cover 3, Cover 3 spy, and Cover 4.
 
 - **Space** or **Snap ball** starts a rep.

@@ -22,7 +22,7 @@ test('All routes remain finite and inside sidelines; prediction matches actual m
  }
 });
 test('Deep coverage protects deepest vertical threat instead of chasing the nearest short receiver',()=>{
- const a=coverageAssignments('Cover 3',formations['Gun Doubles'])[1];
+ const a=coverageAssignments('Cover 3',formations['Deuce'])[1];
  const result=coverageDecision(a,[0,18],observed([[0,10],[3,25]]),[0,-5],'Cover 3',3,null);
  assert.equal(result.state,'cap-deep');assert.equal(result.threat,1);assert.ok(result.target[1]>25);
 });

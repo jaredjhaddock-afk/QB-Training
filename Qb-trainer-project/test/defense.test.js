@@ -18,14 +18,14 @@ test('Every front/formation/coverage preserves eleven defenders and correct pers
 });
 test('Linebackers start at 4.5 yards, not at coverage drop landmarks; odd-front edge is on the line',()=>{
  for(const name of Object.keys(defensiveFronts))for(const coverage of Object.keys(coverages)){
-  const players=defensiveAlignment(name,coverage,formations['Gun Doubles']);
+  const players=defensiveAlignment(name,coverage,formations['Deuce']);
   for(const p of players.filter(p=>p.position==='LB'))assert.equal(p.alignZ,name==='3–4 Odd'&&p.name==='LB4'?1.25:4.5);
   for(const p of players.filter(p=>p.position==='DL'))assert.equal(p.alignZ,.75);
   for(const p of players.filter(p=>p.name.startsWith('S')&&p.role==='deep'))assert.equal(p.alignZ,11.5);
  }
 });
 test('4–4 rotates a linebacker for Cover 4 without inventing extra defensive backs',()=>{
- const players=defensiveAlignment('4–4','Cover 4',formations['Gun Doubles']);
+ const players=defensiveAlignment('4–4','Cover 4',formations['Deuce']);
  assert.equal(players.filter(p=>p.role==='deep'&&p.position==='LB').length,1);
  assert.ok(players.filter(p=>p.role==='deep').every(p=>p.alignZ<p.z));
 });
@@ -38,7 +38,7 @@ test('Man defenders over a running back never align behind the defensive line',(
 
 test('Cover 3 uses both corners in outside thirds and a single safety in the middle third',()=>{
  for(const front of Object.keys(defensiveFronts)){
-  const deep=defensiveAlignment(front,'Cover 3',formations['Gun Doubles']).filter(p=>p.role==='deep');
+  const deep=defensiveAlignment(front,'Cover 3',formations['Deuce']).filter(p=>p.role==='deep');
   assert.equal(deep.filter(p=>p.name.startsWith('CB')).length,2);
   assert.equal(deep.find(p=>p.name.startsWith('S')).alignX,0);
  }

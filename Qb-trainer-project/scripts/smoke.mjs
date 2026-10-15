@@ -17,7 +17,7 @@ try {
  await page.waitForFunction(()=>window.pocketLab.getState().phase==='done',{},{timeout:10000});assert.equal((await state()).passes,1);assert.ok(await page.locator('#result-title').textContent());
  console.log('Pass resolved');await page.keyboard.press('r');assert.equal((await state()).phase,'ready');assert.equal((await state()).elapsed,0);
  await page.locator('#snap').click();await page.waitForFunction(()=>window.pocketLab.getState().phase==='done',{},{timeout:60000});assert.equal((await state()).sacked,true);
- await page.locator('#reset').click();await page.selectOption('#formation','Gun Doubles');await page.locator('#show-zones').uncheck();
+ await page.locator('#reset').click();await page.selectOption('#formation','Deuce');await page.locator('#show-zones').uncheck();
  console.log('Sack and reset verified');await page.screenshot({path:'/workspace/pocket-lab-desktop.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(300);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'/workspace/pocket-lab-mobile.png',fullPage:true});
  assert.deepEqual(errors,[]);console.log('PASS: 7 coverages, formation/hot-route changes, snap, keyboard movement and throw, pass outcome, reset, sack, responsive layout, and no browser exceptions.');

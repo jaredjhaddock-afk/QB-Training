@@ -1,5 +1,9 @@
 export const formations = {
-  'Gun Doubles': [[22,0],[10,-1],[-10,-1],[-22,0],[4,-5]],
+  'Deuce': [[22,0],[10,-1],[-10,-1],[-22,0],[4,-5]],
+  // Positive X is the QB's left. Y is attached outside the tackle (X = ±3.4).
+  // The wideout beside Y is off the line so the tight end stays eligible.
+  'Deuce RT': [[22,0],[10,-1],[-5.2,0],[-22,-1],[4,-5]],
+  'Deuce LT': [[22,-1],[-10,-1],[5.2,0],[-22,0],[-4,-5]],
   'Gun Trips Right': [[22,0],[-7,-1],[-14,-1],[-22,0],[4,-5]],
   'Trips LT': [[22,0],[14,-1],[7,-1],[-22,0],[-4,-5]],
   'Trips RT': [[22,0],[-7,-1],[-14,-1],[-22,0],[4,-5]],
