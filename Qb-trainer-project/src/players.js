@@ -175,6 +175,7 @@ export function createPlayer(isOffense, number, role = 'receiver') {
   }
   root.userData.rig = { body, head, arms, legs };
   root.userData.role = role;
+  root.userData.number = number;
   root.userData.visual = { moving: false, time: 0, throwProgress: null, catching: false };
   bindSharedGeometry(root);
   if(!contactMaterial){

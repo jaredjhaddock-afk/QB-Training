@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { poseLineman } from './lineman-pose.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 
@@ -66,10 +67,8 @@ export function attachPlayerAsset(player, asset, offense) {
   const mixer = new THREE.AnimationMixer(model);
   const actions = Object.fromEntries(asset.clips.map(clip => [clip.name,mixer.clipAction(clip)]));
   actions.Catch.setLoop(THREE.LoopOnce,1);actions.Catch.clampWhenFinished = true;
-  const poseBones = ['Spine02','LeftArm','RightArm','RightForeArm'].map(name => {
-    const bone = model.getObjectByName(name);
-    return { bone, animatedRotation:bone.quaternion.clone() };
-  });
+  const poseBones=[];
+  model.traverse(bone=>{if(bone.isBone)poseBones.push({bone,animatedRotation:bone.quaternion.clone(),animatedPosition:bone.position.clone()});});
   player.userData.asset = { model, mixer, actions, poseBones, current:null, lastTime:0 };
   animateAsset(player,0,false);
 }
@@ -80,7 +79,7 @@ export function animateAsset(player,time,moving,{throwProgress=null,catching=fal
   // AnimationMixer can skip writing unchanged tracks. Remove last frame's
   // procedural offsets before sampling, otherwise constant Idle tracks allow
   // rotateX() offsets to accumulate into full torso/arm revolutions.
-  for (const pose of poseBones) pose.bone.quaternion.copy(pose.animatedRotation);
+  for (const pose of poseBones) {pose.bone.quaternion.copy(pose.animatedRotation);pose.bone.position.copy(pose.animatedPosition);}
   const speed = player.userData.locomotion?.speed ?? (moving ? 7/.9144 : 0);
   const lineman = ['blocker','rusher'].includes(player.userData.role);
   const name = catching ? 'Catch' : moving && speed > (lineman ? 2.2 : .6) ? 'Run' : 'Idle';
@@ -98,12 +97,9 @@ export function animateAsset(player,time,moving,{throwProgress=null,catching=fal
   // The source catches at about one second. Time the leap to ball arrival.
   if (catching) { actions.Catch.paused=true;actions.Catch.time=catchTime??(.1+.9*catchProgress); }
   mixer.update(dt);data.lastTime=time;
-  for (const pose of poseBones) pose.animatedRotation.copy(pose.bone.quaternion);
+  for (const pose of poseBones) {pose.animatedRotation.copy(pose.bone.quaternion);pose.animatedPosition.copy(pose.bone.position);}
   // No blocking or throwing clips were supplied: add small upper-body poses.
-  if (lineman && name === 'Idle') {
-    model.getObjectByName('Spine02').rotateX(.25);
-    for (const side of ['Left','Right']) model.getObjectByName(`${side}Arm`).rotateX(-.55);
-  }
+  if (lineman && name === 'Idle') poseLineman(model,time,speed,(player.userData.number??0)*.47);
   if (throwProgress !== null) {
     model.getObjectByName('RightArm').rotateX(THREE.MathUtils.lerp(.7,-1.1,throwProgress));
     model.getObjectByName('RightForeArm').rotateX(-.45);
@@ -128,4 +124,10 @@ export function settleCatch(player,dt) {
   if (action.time>=duration) return false;
   animateAsset(player,data.lastTime+dt,false,{catching:true,catchTime:Math.min(duration,action.time+dt)});
   return true;
+}
+
+export function aimPlayerHead(player,angle) {
+  const turn=THREE.MathUtils.clamp(angle,-.65,.65);
+  if(player.userData.asset)player.userData.asset.model.getObjectByName('Head').rotateY(turn);
+  else player.userData.rig.head.rotation.y=turn;
 }

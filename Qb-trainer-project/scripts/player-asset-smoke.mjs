@@ -52,6 +52,10 @@ try {
     return {stopped:!settleCatch(player,1/60),stationary:player.position.equals(start),finite:point.toArray().every(Number.isFinite)};
   });
   assert.ok(landing.stopped&&landing.stationary&&landing.finite);
+  await page.evaluate(()=>{const d=modelCheck;d.players.forEach(p=>{p.userData.role='blocker';p.userData.locomotion={speed:0};d.animateAsset(p,0,false);});d.renderer.render(d.scene,d.camera);});
+  await page.screenshot({path:'/workspace/pocket-lab-three-point.png'});
+  await page.evaluate(()=>{const d=modelCheck;d.players.forEach(p=>d.animateAsset(p,1,false));d.renderer.render(d.scene,d.camera);});
+  await page.screenshot({path:'/workspace/pocket-lab-blocking.png'});
   assert.deepEqual(errors,[]);
   console.log('PASS: actual GLB loads, correct yard scale, independent cloned skeletons, in-place catch, hidden embedded football, and Idle/Run/Catch rendering.');
 } finally { await browser.close(); }

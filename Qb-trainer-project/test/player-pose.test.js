@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { attachPlayerAsset, animateAsset, inPlaceClips } from '../src/player-asset.js';
+import { attachPlayerAsset, animateAsset, inPlaceClips, aimPlayerHead } from '../src/player-asset.js';
 
 // Exercise the actual uploaded rig and clips without browser-only texture loading.
 if (!globalThis.ProgressEvent) globalThis.ProgressEvent = class ProgressEvent {};
@@ -25,22 +25,29 @@ function matchesPose(subject,reference,name,angle) {
   assert.ok(actual.clone().normalize().angleTo(expected.normalize())<1e-6,`${name} drifted from its animated pose`);
 }
 
-test('actual lineman rig holds one blocking offset through full reps, resets and run transitions',()=>{
-  for (const role of ['blocker','rusher']) {
-    const subject=player(role),reference=player('receiver');
-    for(let rep=0;rep<3;rep++) {
-      for(let frame=0;frame<=720;frame++) {
-        const running=frame>240&&frame<360;
-        for(const p of [subject,reference]) {
-          p.userData.locomotion={speed:running?5:0};
-          animateAsset(p,frame/60,running);
-        }
-        matchesPose(subject,reference,'Spine02',running?0:.25);
-        matchesPose(subject,reference,'LeftArm',running?0:-.55);
-        matchesPose(subject,reference,'RightArm',running?0:-.55);
-      }
-    }
+test('lineman stance and blocking poses stay stable through repeated samples and resets',()=>{
+ for(const role of ['blocker','rusher']){
+  const subject=player(role);
+  for(const time of [0,1,4,0]){
+   animateAsset(subject,time,false);
+   const bones=subject.userData.asset.poseBones.map(({bone})=>({bone,q:bone.quaternion.clone().normalize(),p:bone.position.clone()}));
+   for(let frame=0;frame<120;frame++){
+    animateAsset(subject,time,false);
+    for(const {bone,q,p} of bones){assert.ok(bone.quaternion.clone().normalize().angleTo(q)<1e-6);assert.ok(bone.position.distanceTo(p)<1e-6);}
+   }
   }
+ }
+});
+
+test('three-point stance lowers the helmet and places a hand on the turf',()=>{
+ const subject=player('blocker'),model=subject.userData.asset.model;
+ subject.updateMatrixWorld(true);
+ const point=name=>model.getObjectByName(name).getWorldPosition(new THREE.Vector3());
+ assert.ok(point('Head').y<1.6,`helmet ${point('Head').y}`);
+ assert.ok(point('RightHand').y<.18,`hand ${point('RightHand').y}`);
+ for(const side of ['Left','Right'])assert.ok(point(`${side}Foot`).y>.04);
+ animateAsset(subject,1,false);subject.updateMatrixWorld(true);
+ assert.ok(point('RightHand').y>.8,'hands rise to block after the snap');
 });
 
 test('throw offsets do not accumulate and disappear when the throw ends',()=>{
@@ -52,4 +59,16 @@ test('throw offsets do not accumulate and disappear when the throw ends',()=>{
     matchesPose(subject,reference,'RightArm',throwing?-.2:0);
     matchesPose(subject,reference,'RightForeArm',throwing?-.45:0);
   }
+});
+
+
+test('defender head tracking does not accumulate rotations between animation samples',()=>{
+ const subject=player('defender'),reference=player('receiver');
+ for(let frame=0;frame<600;frame++){
+  animateAsset(subject,frame/60,false);animateAsset(reference,frame/60,false);
+  const angle=frame%120<60?.5:-.5;aimPlayerHead(subject,angle);
+  const actual=subject.userData.asset.model.getObjectByName('Head').quaternion.clone().normalize();
+  const expected=reference.userData.asset.model.getObjectByName('Head').quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle)).normalize();
+  assert.ok(actual.angleTo(expected)<1e-6);
+ }
 });

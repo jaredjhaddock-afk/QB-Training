@@ -6,7 +6,7 @@ page.setDefaultTimeout(60000);
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 try{
  await page.goto('http://127.0.0.1:5173',{waitUntil:'domcontentloaded',timeout:60000});
- await page.waitForFunction(()=>window.pocketLab?.getState().visuals.environment==='ready');
+ await page.waitForFunction(()=>window.pocketLab?.getState().visuals.environment==='ready'&&window.pocketLab.getState().visuals.playerModel==='realistic-glb');
  for(const coverage of ['Cover 2 Zone','Cover 3 Spy','Cover 2 Man']){
   await page.locator('#playbook-open').tap();
   await page.selectOption('#coverage',coverage);
@@ -18,7 +18,7 @@ try{
   assert.ok(state.defenders.every(d=>d.position.every(Number.isFinite)&&Math.hypot(...d.velocity)<=5.91));
   if(coverage==='Cover 3 Spy')assert.ok(state.defenders.some(d=>d.decision==='spy'));
   if(coverage==='Cover 2 Man')assert.equal(state.defenders.filter(d=>d.decision==='trail').length,5);
-  if(coverage==='Cover 2 Zone')assert.ok(state.defenders.some(d=>['match-zone','midpoint'].includes(d.decision)));
+  if(coverage==='Cover 2 Zone')assert.ok(state.defenders.some(d=>['carry-zone','drive-under','recover-zone','midpoint'].includes(d.decision)));
   await page.locator('[data-receiver="R"]').tap();
   await page.waitForFunction(()=>window.pocketLab.getState().phase==='done');
   await page.locator('#reset').tap();

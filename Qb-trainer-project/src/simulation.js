@@ -1,3 +1,5 @@
+import { rushTarget } from './pocket.js';
+import { readZone } from './zone-reads.js';
 // Positions/distances are in field yards, time in seconds. No renderer dependency.
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -39,14 +41,11 @@ export function predictReceiver(body, path, seconds) {
 }
 
 // Decision inputs contain observed positions/velocities, never receiver routes.
-export function coverageDecision(assignment, position, observed, qb, coverage, elapsed, flight, index = 0) {
+export function coverageDecision(assignment, position, observed, qb, coverage, elapsed, flight, index = 0, memory = {}, blockers = []) {
   const a = assignment;
-  let target = [a.x, a.z], speed = 5.5, state = 'landmark', threat = null;
+  let target = [a.x, a.z], speed = 5.5, state = 'landmark', threat = null, conflict = null, acceleration = 11;
   if (a.role === 'rush') {
-    const release = coverage === 'Cover 0 Blitz' ? 1.7 : 3.2 + index % 3 * .35;
-    const edge = Math.abs(a.x) >= 4;
-    target = elapsed < release ? [a.x * .85, -.7] : edge && position[1] > qb[1] + 1.5 ? [qb[0] + Math.sign(a.x) * 2.5, qb[1]] : qb;
-    speed = elapsed < release ? 1.2 : 4.6;state = elapsed < release ? 'engaged' : edge ? 'contain-rush' : 'rush';
+    ({target,speed,state}=rushTarget(a,position,qb,elapsed,index,blockers));
   } else if (a.role === 'spy') {
     target = [clamp(qb[0] * .85, -20, 20), Math.max(1.5, qb[1] + 6)];
     state = 'spy';speed = 4.6;
@@ -57,22 +56,9 @@ export function coverageDecision(assignment, position, observed, qb, coverage, e
     target = [r.p[0] + r.v[0] * .12 + leverage, r.p[1] + r.v[1] * .12 + (underneath ? -.65 : .75)];
     state = underneath ? 'trail' : 'man';
   } else {
-    const deep = a.role === 'deep';
-    const candidates = observed.map((r, i) => ({ ...r, i })).filter(r => r.p[0] >= a.minX - .7 && r.p[0] <= a.maxX + .7 && (deep ? r.p[1] > 7 : r.p[1] > -3 && r.p[1] < 17));
-    // Deep defenders prioritize the deepest threat; underneath defenders midpoint
-    // threats in their lane instead of following a crosser across the field.
-    if (candidates.length) {
-      if (deep) {
-        const r = candidates.reduce((best, r) => r.p[1] > best.p[1] ? r : best);
-        threat = r.i;
-        target = [clamp(r.p[0] + r.v[0] * .2, a.minX + .5, a.maxX - .5), Math.max(a.z, r.p[1] + 3.2)];
-        state = 'cap-deep';
-      } else {
-        target = [clamp(candidates.reduce((n, r) => n + r.p[0], 0) / candidates.length, a.minX + .5, a.maxX - .5), clamp(candidates.reduce((n, r) => n + r.p[1], 0) / candidates.length + .6, 3, 13)];
-        state = candidates.length > 1 ? 'midpoint' : 'match-zone';threat = candidates[0].i;
-      }
-    }
+    ({target,speed,state,threat,conflict,acceleration}=readZone(a,position,observed,elapsed,index,memory));
   }
+
   // Break only after a visible release and a human reaction interval. Man
   // defenders must be near their assignment; zones must be near the landing lane.
   if (flight && flight.t >= .24 + index % 3 * .035 && a.role !== 'rush') {
@@ -80,7 +66,7 @@ export function coverageDecision(assignment, position, observed, qb, coverage, e
     const canSee = a.role !== 'man' || distance(position, observed[a.target].p) < 3;
     if (close && canSee) { target = [...flight.end];state = 'break-on-ball';speed = 5.9; }
   }
-  return { target, speed, state, threat };
+  return { target, speed, state, threat, conflict, acceleration };
 }
 
 // A spot settles at its endpoint and presents its chest to the quarterback.
