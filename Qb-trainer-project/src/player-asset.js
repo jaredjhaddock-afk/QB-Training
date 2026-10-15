@@ -45,7 +45,7 @@ function teamMaterial(source, offense) {
 }
 
 export async function loadPlayerAsset() {
-  const gltf = await new GLTFLoader().loadAsync('/assets/players/football_player_realistic.glb');
+  const gltf = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}assets/players/football_player_realistic.glb`);
   const hips = gltf.scene.getObjectByName('Hips');
   const clips = inPlaceClips(gltf.animations, hips.position);
   const source = gltf.scene.getObjectByName('Player').material;

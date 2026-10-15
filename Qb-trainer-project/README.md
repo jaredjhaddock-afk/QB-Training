@@ -172,3 +172,16 @@ Each snap gives defenders stable, bounded read preferences and reaction timings,
 When a recent conflict involves the pass target, the rep review names the defender, the receivers he was reading, and the receiver he chose. This describes the observed choice, not a guarantee that the throw was open: other defenders and the passing lane still matter. Try a short route and an intermediate route entering the same zone, watch the underneath defender's first committed steps, and repeat with different timing.
 
 Offensive linemen and defensive down linemen begin in three-point stances, then rise over the first 0.45 seconds. The offensive line forms a pocket with deeper tackle sets, lateral adjustments to nearby rushers, shuffling feet, and hand activity. Rushers engage those moving blockers before releasing toward the QB. **No defender can sack the QB before 4.0 seconds of play-clock time**, including blitzers; pressure becomes eligible after that, but sacks still require actual proximity. Slow motion stretches that interval in real time. This is controlled training protection, not collision-based blocking or a guarantee of a sack at four seconds.
+
+## GitHub Pages hosting
+
+The repository workflow **Deploy game to GitHub Pages** builds this folder and
+publishes `dist` on pushes to `main`, or manually from the Actions tab.
+In repository **Settings → Pages → Build and deployment**, select **GitHub Actions**
+as the source. Then use **Actions → Deploy game to GitHub Pages → Run workflow**
+on `main`. The expected site URL is
+`https://jaredjhaddock-afk.github.io/QB-Training/`.
+The first run can fail until Pages is enabled; run it again after enabling Pages.
+The workflow builds with `--base=/QB-Training/`; models, lighting, and credits use
+Vite's base URL so both this hosted path and local development work.
+GitHub Pages serves the built game independently of Codespaces.

@@ -31,7 +31,7 @@ export function createTurfMaterials(renderer) {
 
 export async function loadEnvironment(scene, renderer) {
   // Locally hosted CC0 HDRI: no provider/network dependency during play.
-  const hdr = await new RGBELoader().loadAsync('/assets/environment/kiara_1_dawn_1k.hdr');
+  const hdr = await new RGBELoader().loadAsync(`${import.meta.env.BASE_URL}assets/environment/kiara_1_dawn_1k.hdr`);
   hdr.mapping = THREE.EquirectangularReflectionMapping;
   const generator = new THREE.PMREMGenerator(renderer);
   const filtered = generator.fromEquirectangular(hdr);
